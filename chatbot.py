@@ -423,6 +423,9 @@ for i in ans:
 
 connection.close()
 
+#time gap
+time.sleep(30)
+
 print('starting new')
 os.system("python followup.py")
 
@@ -470,7 +473,7 @@ os.system("python followup.py")
 
 
 
-
+#PLEASE IGNORE THE FOLLOWING
 
 
 

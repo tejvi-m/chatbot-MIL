@@ -5,21 +5,22 @@ import re
 import time
 import collections
 import os
+import sqlite3
 
 
-#Encoding
+
+
 def build_dataset(words, n_words, atleast=1):
     count = [['PAD', 0], ['GO', 1], ['EOS', 2], ['UNK', 3]]
-    counter = collections.Counter(words).most_common(n_words) #A counter is a container that stores elements as dictionary keys, and their counts are stored as dictionary values. Return a list of the n most common elements and their counts from the most common to the least. If n is omitted or None, most_common() returns all elements in the counter.
+    counter = collections.Counter(words).most_common(n_words)
     counter = [i for i in counter if i[1] >= atleast]
     count.extend(counter)
     dictionary = dict()
     for word, _ in count:
         dictionary[word] = len(dictionary)
-
     data = list()
     unk_count = 0
-    for word in words: #
+    for word in words:
         index = dictionary.get(word, 0)
         if index == 0:
             print(word)
@@ -33,6 +34,7 @@ def build_dataset(words, n_words, atleast=1):
 
 lines = open('movie_lines.txt', encoding='utf-8', errors='ignore').read().split('\n')
 conv_lines = open('movie_conversations.txt', encoding='utf-8', errors='ignore').read().split('\n')
+
 
 
 id2line = {}
@@ -116,19 +118,20 @@ for answer in short_answers_temp:
     i += 1
 
 
-#print(len(short_questions)) #22278
-#print(len(short_answers)) #22278
+
+conn=sqlite3.connect('chatbot.db')
+cur=conn.cursor()
+print("Connection successful!")
 
 
 
+question_test=['hello']
 
-question_test=[]
-i=0
-while(i<100):
-    user_response=input("User: ")
-    question_test.append(user_response)
-    if(user_response=="Bye"):
-        i=101
+
+
+conn.commit()
+conn.close()
+
 #question_test = short_questions[500:550]
 answer_test = short_answers[500:550]
 short_questions = short_questions[:500]
@@ -139,10 +142,9 @@ print(question_test)
 
 
 
-
-concat_from = ' '.join(short_questions+question_test).split() #splits all the questions into different words
+concat_from = ' '.join(short_questions+question_test).split()
 vocabulary_size_from = len(list(set(concat_from)))
-data_from, count_from, dictionary_from, rev_dictionary_from = build_dataset(concat_from, vocabulary_size_from) #build_dataset function has been defined above
+data_from, count_from, dictionary_from, rev_dictionary_from = build_dataset(concat_from, vocabulary_size_from)
 """print('vocab from size: %d'%(vocabulary_size_from))
 print('Most common words', count_from[4:10]) #Since 0=PAD, 1=GO , 2=EOS, 3=UNK and not the actual words
 print('Sample data', data_from[:10], [rev_dictionary_from[i] for i in data_from[:10]])
@@ -161,10 +163,11 @@ print("% of vocab used: {}%".format(round(len(dictionary_to)/vocabulary_size_to,
 
 
 
-GO = dictionary_from['GO'] #So now it stores the value of the key "GO" in the dictionary
+GO = dictionary_from['GO']
 PAD = dictionary_from['PAD']
 EOS = dictionary_from['EOS']
 UNK = dictionary_from['UNK']
+
 
 
 
@@ -178,7 +181,7 @@ class Chatbot:
                  batch_size, dropout = 0.5, beam_width = 15):
 
         def lstm_cell(size, reuse=False):
-            #returns input tensor or list of input tensors
+
             return tf.nn.rnn_cell.LSTMCell(size, initializer=tf.orthogonal_initializer(),
                                            reuse=reuse)
 
@@ -188,7 +191,7 @@ class Chatbot:
         self.Y_seq_len = tf.count_nonzero(self.Y, 1, dtype=tf.int32)
         batch_size = tf.shape(self.X)[0]
 
-        # encoder
+
         encoder_embeddings = tf.Variable(tf.random_uniform([from_dict_size, embedded_size], -1, 1))
         encoder_embedded = tf.nn.embedding_lookup(encoder_embeddings, self.X)
         for n in range(num_layers):
@@ -281,8 +284,6 @@ def str_idx(corpus, dic):
 
 X = str_idx(short_questions, dictionary_from)
 Y = str_idx(short_answers, dictionary_to)
-X_test = str_idx(question_test, dictionary_from)
-Y_test = str_idx(answer_test, dictionary_from)
 
 
 def pad_sentence_batch(sentence_batch, pad_int):
@@ -312,7 +313,6 @@ for i in range(epoch):
     print('epoch: %d, avg loss: %f, avg accuracy: %f'%(i+1, total_loss, total_accuracy))
 
 
-#model.save('mymodel.h5')
 
 """
 for i in range(len(batch_x)):
@@ -322,12 +322,49 @@ for i in range(len(batch_x)):
     print('PREDICTED ANSWER:',' '.join([rev_dictionary_to[n] for n in predicted[i] if n not in[0,1,2,3]]),'\n')
 """
 
+
+
+
+i=0
+while(i<100):
+    user_response=input("User: ")
+    question_test.pop()
+    question_test.append(user_response)
+    X_test = str_idx(question_test, dictionary_from)
+    batch_x, seq_x = pad_sentence_batch(X_test[:batch_size], PAD)
+    print('QUESTION:',' '.join([rev_dictionary_from[n] for n in batch_x[i] if n not in [0,1,2,3]]))
+    print('PREDICTED ANSWER:',' '.join([rev_dictionary_to[n] for n in predicted[i] if n not in[0,1,2,3]]),'\n')
+
+    if(user_response=="Bye"):
+        i=101
+
+"""
+
+#FOLLOW-UP PART
+
+
+print("follow-up...")
+
+
+
+conn=sqlite3.connect('chatbot.db')
+cur = conn.cursor()
+cur.execute("SELECT quote from USER_ENTRIES")
+rows = cur.fetchall()
+
+question_test=[]
+for row in rows:
+    question_test.append(row[0])
+
+
+X_test = str_idx(question_test, dictionary_from)
 batch_x, seq_x = pad_sentence_batch(X_test[:batch_size], PAD)
-batch_y, seq_y = pad_sentence_batch(Y_test[:batch_size], PAD)
+
+
 predicted = sess.run(model.predicting_ids, feed_dict={model.X:batch_x,model.X_seq_len:seq_x})
 
+
 for i in range(len(batch_x)):
-    print('row %d'%(i+1))
     print('QUESTION:',' '.join([rev_dictionary_from[n] for n in batch_x[i] if n not in [0,1,2,3]]))
-    print('REAL ANSWER:',' '.join([rev_dictionary_to[n] for n in batch_y[i] if n not in[0,1,2,3]]))
     print('PREDICTED ANSWER:',' '.join([rev_dictionary_to[n] for n in predicted[i] if n not in[0,1,2,3]]),'\n')
+"""

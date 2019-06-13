@@ -325,11 +325,54 @@ for i in range(len(batch_x)):
 
 
 
+pattern1=[{"POS": "PRON"}]
+pattern2=[{"POS": "VERB"}]
+pattern3=[{"POS":"NOUN"}]
+
+#Execute below statement only first time
+#cur.execute("""CREATE TABLE NER(who VARCHAR(20), action VARCHAR(20), event VARCHAR(20))""")
+
+connection=sqlite3.connect("chatbot.db")
+
+
+nlp=spacy.load('en_core_web_sm')
+matcher=Matcher(nlp.vocab)      #initializing with shared vocab
 i=0
 while(i<100):
     user_response=input("User: ")
+    #first make question_test empty else will give predicted output for even the first response again. Which we don't want. Make it empty each time.
     question_test.pop()
     question_test.append(user_response)
+    if(sid.polarity_scores(user_response)["compound"]<0):
+        doc=nlp(question_test[0])
+
+        #Adding pattern and application to doc
+        ####NER NEEDS TO BE IMPROVED#### SINCE USER CAN GIVE INPUTS ONLY IN THE ORDER "PRON , VERB, NOUN"
+        matcher.add("who",None, pattern1)
+        matcher.add("action",None, pattern2)
+        matcher.add("event",None, pattern3)
+
+        matches=matcher(doc)
+        #cur.execute("INSERT INTO USER_ENTRIES(quote)\
+        #    VALUES (?)",(user_response,))
+
+        list1=[]
+        for match_id, start, end in matches:
+            #rule_id = nlp.vocab.strings[match_id]  # get the unicode ID, i.e. 'COLOR'
+            span = doc[start : end]  # get the matched slice of the doc
+            list1.append(span.text)
+
+        who=list1[0]
+        action=list1[1]
+        event=list1[2]
+        #Creating and connecting to database
+
+        #print(who,action,event)
+
+        cur.execute("INSERT INTO NER (who, action, event) values (?, ?, ?)", (who, action, event))
+
+
+
     X_test = str_idx(question_test, dictionary_from)
     batch_x, seq_x = pad_sentence_batch(X_test[:batch_size], PAD)
     print('QUESTION:',' '.join([rev_dictionary_from[n] for n in batch_x[i] if n not in [0,1,2,3]]))
@@ -338,7 +381,30 @@ while(i<100):
     if(user_response=="Bye"):
         i=101
 
-"""
+conn.commit() #SO IMPORTANT!!! REMEMBER TO COMMIT https://sebastianraschka.com/Articles/2014_sqlite_in_python_tutorial.html
+
+
+
+
+
+
+
+
+#open whenever you open to prevent misplacements
+#sess.close()
+
+#TODO : Add bidirectional for better working.
+
+
+
+
+
+time.sleep(5)
+
+
+
+
+
 
 #FOLLOW-UP PART
 
@@ -354,8 +420,10 @@ rows = cur.fetchall()
 
 question_test=[]
 for row in rows:
-    question_test.append(row[0])
-
+    #print("Response: ", row[0])
+    questionNew=list(row)
+    question_test.append(' '.join(questionNew))
+    #question_test.append(row[0]
 
 X_test = str_idx(question_test, dictionary_from)
 batch_x, seq_x = pad_sentence_batch(X_test[:batch_size], PAD)

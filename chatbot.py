@@ -9,6 +9,7 @@ import spacy
 from spacy.matcher import Matcher
 import sqlite3
 import time
+from textblob import TextBlob
 
 
 
@@ -125,8 +126,9 @@ for answer in short_answers_temp:
 #print(len(short_answers)) #22278
 
 
+question_test1=['hello']
 
-
+'''
 question_test1=[]
 i=0
 while(i<100):
@@ -134,6 +136,8 @@ while(i<100):
     question_test1.append(user_response)
     if(user_response=="Bye"):
         i=101
+'''
+
 #question_test = short_questions[500:550]
 answer_test1 = short_answers[500:550]
 short_questions1 = short_questions[:500]
@@ -318,8 +322,6 @@ for i in range(epoch):
 
 '''
 #model.save('mymodel.h5')
-
-
 for i in range(len(batch_x)):
     print('row %d'%(i+1))
     print('QUESTION:',' '.join([rev_dictionary_from[n] for n in batch_x[i] if n not in [0,1,2,3]]))
@@ -331,13 +333,33 @@ batch_x, seq_x = pad_sentence_batch(X_test[:batch_size], PAD)
 batch_y, seq_y = pad_sentence_batch(Y_test[:batch_size], PAD)
 predicted = sess.run(model.predicting_ids, feed_dict={model.X:batch_x,model.X_seq_len:seq_x})
 
+questions2=[]
+
+i=0
+while(i<100):
+    user_response=input("User: ")
+    question_test1.pop()
+    question_test1.append(user_response)
+    questions2.append(user_response)
+    X_test = str_idx(question_test1, dictionary_from)
+    batch_x, seq_x = pad_sentence_batch(X_test[:batch_size], PAD)
+    print('QUESTION:',' '.join([rev_dictionary_from[n] for n in batch_x[i] if n not in [0,1,2,3]]))
+    print('PREDICTED ANSWER:',' '.join([rev_dictionary_to[n] for n in predicted[i] if n not in[0,1,2,3]]),'\n')
+
+    if(user_response=="Bye"):
+        i=101
+
+print(questions2)
+
+#Not needed
+'''
 for i in range(len(batch_x)):
     print('row %d'%(i+1))
     print('QUESTION:',' '.join([rev_dictionary_from[n] for n in batch_x[i] if n not in [0,1,2,3]]))
     print('REAL ANSWER:',' '.join([rev_dictionary_to[n] for n in batch_y[i] if n not in[0,1,2,3]]))
     print('PREDICTED ANSWER:',' '.join([rev_dictionary_to[n] for n in predicted[i] if n not in[0,1,2,3]]),'\n')
 
-
+'''
 
 #Follow up
 #Use the question given
@@ -350,16 +372,19 @@ for i in range(len(batch_x)):
 #import spacy
 #from spacy.matcher import Matcher
 
+for text in questions2:
+    if (TextBlob(text)).sentiment.polarity <0:
+        neg=text
+
 nlp=spacy.load('en_core_web_sm')
 matcher=Matcher(nlp.vocab)      #initializing with shared vocab
-question_test2=question_test1[0]
-doc=nlp(question_test2)
+doc=nlp(neg)
 
 #Writing a pattern that we're looking for
 #proper noun,
 
 pattern1=[{"POS": "PRON"}]
-pattern2=[{"LEMMA": "lose"}]
+pattern2=[{"LEMMA": "hate"}]
 pattern3=[{"POS":"NOUN"}]
 
 
@@ -433,301 +458,3 @@ os.system("python followup.py")
 
 
 #DONE
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#PLEASE IGNORE THE FOLLOWING
-
-
-
-'''
-print("starting test.....")
-time.sleep(10)
-print("And now.....")
-
-#Convert tuple to list
-questionNew=list(ans[0])
-questionNew=' '.join(questionNew)
-#               #######START OF TEST#####
-
-
-question_test=[]
-question_test.append(questionNew)
-print()
-print()
-print()
-print(question_test)
-print()
-print()
-print()
-
-answer_test = short_answers[500:550]
-short_questions = short_questions[:500]
-short_answers = short_answers[:500]
-    #In [4]:
-concat_from = ' '.join(question_test+short_questions).split()
-vocabulary_size_from = len(list(set(concat_from)))
-data_from, count_from, dictionary_from, rev_dictionary_from = build_dataset(concat_from, vocabulary_size_from)
-print('vocab from size: %d'%(vocabulary_size_from))
-print('Most common words', count_from[4:10])
-print('Sample data', data_from[:10], [rev_dictionary_from[i] for i in data_from[:10]])
-print('filtered vocab size:',len(dictionary_from))
-print("% of vocab used: {}%".format(round(len(dictionary_from)/vocabulary_size_from,4)*100))
-#vocab from size: 657
-#Most common words [('you', 132), ('is', 78), ('i', 68), ('what', 51), ('it', 50), ('that', 49)]
-#Sample data [7, 28, 129, 35, 61, 42, 12, 22, 82, 225] ['what', 'good', 'stuff', 'she', 'okay', 'they', 'do', 'to', 'hey', 'sweet']
-#filtered vocab size: 661
-#% of vocab used: 100.61%
-#In [5]:
-concat_to = ' '.join(short_answers+answer_test).split()
-vocabulary_size_to = len(list(set(concat_to)))
-data_to, count_to, dictionary_to, rev_dictionary_to = build_dataset(concat_to, vocabulary_size_to)
-print('vocab from size: %d'%(vocabulary_size_to))
-print('Most common words', count_to[4:10])
-print('Sample data', data_to[:10], [rev_dictionary_to[i] for i in data_to[:10]])
-print('filtered vocab size:',len(dictionary_to))
-print("% of vocab used: {}%".format(round(len(dictionary_to)/vocabulary_size_to,4)*100))
-#vocab from size: 660
-#Most common words [('i', 97), ('you', 91), ('is', 62), ('it', 58), ('not', 47), ('what', 39)]
-#Sample data [12, 216, 5, 4, 94, 25, 59, 10, 8, 79] ['the', 'real', 'you', 'i', 'hope', 'so', 'they', 'do', 'not', 'hi']
-#filtered vocab size: 664
-#% of vocab used: 100.61%
-#In [6]:
-GO = dictionary_from['GO']
-PAD = dictionary_from['PAD']
-EOS = dictionary_from['EOS']
-UNK = dictionary_from['UNK']
-
-for i in range(len(short_answers)):
-    short_answers[i] += ' EOS'
-
-#           ###END###
-
-
-
-size_layer = 256
-num_layers = 2
-embedded_size = 128
-learning_rate = 0.001
-batch_size = 16
-epoch = 5
-
-tf.reset_default_graph()
-sess = tf.InteractiveSession()
-model = Chatbot(size_layer, num_layers, embedded_size, len(dictionary_from),
-                len(dictionary_to), learning_rate,batch_size)
-sess.run(tf.global_variables_initializer())
-
-
-
-X = str_idx(short_questions, dictionary_from)
-Y = str_idx(short_answers, dictionary_to)
-X_test = str_idx(question_test, dictionary_from)
-Y_test = str_idx(answer_test, dictionary_from)
-#In [13]:
-maxlen_question = max([len(x) for x in X]) * 2
-maxlen_answer = max([len(y) for y in Y]) * 2
-
-#training again
-for i in range(epoch):
-    total_loss, total_accuracy = 0, 0
-    for k in range(0, len(short_questions), batch_size):
-        index = min(k+batch_size, len(short_questions))
-        batch_x, seq_x = pad_sentence_batch(X[k: index], PAD)
-        batch_y, seq_y = pad_sentence_batch(Y[k: index], PAD)
-        predicted, accuracy,loss, _ = sess.run([model.predicting_ids,
-                                                model.accuracy, model.cost, model.optimizer],
-                                      feed_dict={model.X:batch_x,
-                                                model.Y:batch_y})
-        total_loss += loss
-        total_accuracy += accuracy
-    total_loss /= (len(short_questions) / batch_size)
-    total_accuracy /= (len(short_questions) / batch_size)
-    print('epoch: %d, avg loss: %f, avg accuracy: %f'%(i+1, total_loss, total_accuracy))
-
-
-
-
-
-
-print("Done")
-print()
-print()
-print()
-
-
-
-for i in range(len(batch_x)):
-    print('row %d'%(i+1))
-    print('QUESTION:',' '.join([rev_dictionary_from[n] for n in batch_x[i] if n not in [0,1,2,3]]))
-    print('PREDICTED ANSWER:',' '.join([rev_dictionary_to[n] for n in predicted[i] if n not in[0,1,2,3]]),'\n')
-print()
-print()
-print()
-
-print("Done")
-'''
-
-
-
-'''
-#Will try later
-import spacy
-import numpy as np
-import pandas
-import utils
-nlp = spacy.load("en_core_web_sm")
-def test(x):
-    #due to the mapping between words and integers the DAE does not deal
-    #well with numbers it has not seen before.
-    #in the training phase, the prices have been split into '£' and the value
-    #while doing NER.
-    #this is just a quick fix, but there has to be a real fix for the test phase at least
-    try:
-        return vocab_to_int[x]
-    except:
-        try:
-            return vocab_to_int['£'+x]
-        except:
-            print(x)
-def newCorrupt(sentence):
-    #get names - propernounse and sometimes nouns.
-    #get adjectives
-    #NER will get the cardinal values i.e., numbers.
-    #get everything in NER
-    #finally make the whole thing a set.
-    #using NER doesn't add much to it right now
-    sentence = nlp(sentence)
-    toString = set()
-    for ent in sentence.ents:
-        try:
-            x = float(ent.text)
-            num = True
-        except:
-            num = False
-        if num == False:
-            for word in ent.text.split(' '):
-                toString.add((word))
-        else:
-            toString.add((ent.text))
-    for token in sentence:
-        pos = token.pos_
-        add = True
-        if pos == 'PROPN':
-            toString.add((token.text))
-        if pos == "ADJ" or pos == "ADV":
-            toString.add((token.text))
-        if pos == "NOUN":
-            add = np.random.choice([1, 0, 0, 1])
-            if add:
-                toString.add((token.text))
-    curroptedS = ''
-    for string in toString:
-        curroptedS += ' ' + string
-    return curroptedS
-cor = trainset['ref'].apply(lambda x: newCorrupt(x))
-trainset = trainset.assign(corrupted=cor)
-as_tokens = trainset['corrupted'].apply(lambda x: [test(each) for each in x.split()])
-trainset = trainset.assign(tokenized_corrupted=as_tokens)
-trainset.to_csv('./data/processedTrainset.csv')
-'''
-
-
-'''
-#Will try later
-import spacy
-import numpy as np
-import pandas
-import utils
-nlp = spacy.load("en_core_web_sm")
-def test(x):
-    #due to the mapping between words and integers the DAE does not deal
-    #well with numbers it has not seen before.
-    #in the training phase, the prices have been split into '£' and the value
-    #while doing NER.
-    #this is just a quick fix, but there has to be a real fix for the test phase at least
-    try:
-        return vocab_to_int[x]
-    except:
-        try:
-            return vocab_to_int['£'+x]
-        except:
-            print(x)
-def newCorrupt(sentence):
-    #get names - propernounse and sometimes nouns.
-    #get adjectives
-    #NER will get the cardinal values i.e., numbers.
-    #get everything in NER
-    #finally make the whole thing a set.
-    #using NER doesn't add much to it right now
-    sentence = nlp(sentence)
-    toString = set()
-    for ent in sentence.ents:
-        try:
-            x = float(ent.text)
-            num = True
-        except:
-            num = False
-        if num == False:
-            for word in ent.text.split(' '):
-                toString.add((word))
-        else:
-            toString.add((ent.text))
-    for token in sentence:
-        pos = token.pos_
-        add = True
-        if pos == 'PROPN':
-            toString.add((token.text))
-        if pos == "ADJ" or pos == "ADV":
-            toString.add((token.text))
-        if pos == "NOUN":
-            add = np.random.choice([1, 0, 0, 1])
-            if add:
-                toString.add((token.text))
-    curroptedS = ''
-    for string in toString:
-        curroptedS += ' ' + string
-    return curroptedS
-cor = trainset['ref'].apply(lambda x: newCorrupt(x))
-trainset = trainset.assign(corrupted=cor)
-as_tokens = trainset['corrupted'].apply(lambda x: [test(each) for each in x.split()])
-trainset = trainset.assign(tokenized_corrupted=as_tokens)
-trainset.to_csv('./data/processedTrainset.csv')
-'''

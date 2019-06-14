@@ -378,6 +378,7 @@ while(i<100):
     batch_x, seq_x = pad_sentence_batch(X_test[:batch_size], PAD)
     print(dictionary_from)
     print(batch_x)
+    predicted = sess.run(model.predicting_ids, feed_dict={model.X:batch_x,model.X_seq_len:seq_x})
     print('QUESTION:',' '.join([rev_dictionary_from[n] for n in batch_x[i] if n not in [0,1,2,3]]))
     print('PREDICTED ANSWER:',' '.join([rev_dictionary_to[n] for n in predicted[i] if n not in[0,1,2,3]]),'\n')
 

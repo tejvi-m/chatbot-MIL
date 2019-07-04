@@ -14,6 +14,13 @@ import spacy
 from textblob import TextBlob
 import time
 
+import json
+import spacy
+from ibm_watson import NaturalLanguageUnderstandingV1
+from ibm_watson.natural_language_understanding_v1 import Features, SentimentOptions, EmotionOptions, KeywordsOptions, SemanticRolesOptions, CategoriesOptions
+natural_language_understanding=NaturalLanguageUnderstandingV1(version='2018-11-16',iam_apikey='KoTo6dvndPQEAy3T9LNqZMGJEHhEa2Yy3tHLyxTNO50r',url='https://gateway-lon.watsonplatform.net/natural-language-understanding/api')
+
+nlp=spacy.load("en_core_web_md")
 
 print('All libraries imported')
 
@@ -29,10 +36,32 @@ def initial_setup(data_corpus):
     validY = tl.prepro.remove_pad_sequences(validY.tolist())
     return metadata, trainX, trainY, testX, testY, validX, validY
 
+def classification(user_input):
+    response=natural_language_understanding.analyze(text=user_input,
+    features=Features(categories=CategoriesOptions(limit=1))).get_result()
+    #print(json.dumps(response,indent=2))
+    categories=response["categories"]
+    #taking the highest score
+    category=categories[0]
+    label=category["label"]
+    label=label.split("/")
+    topic=label[1]
+    print("topic: ",topic)
+    return topic
+
+def sentiment_extraction(user_input):
+    sentiment=natural_language_understanding.analyze(text=user_input,
+    features=Features(sentiment=SentimentOptions(text))).get_result()
+    dic=sentiment["sentiment"]
+    doc=dic["document"]
+    score=doc["score"]
+    print("sentiment: ",score)
+    return score
+
 
 
 if __name__ == "__main__":
-    data_corpus = "cornell_corpus"
+    data_corpus = "squad"
 
     #data preprocessing
     metadata, trainX, trainY, testX, testY, validX, validY = initial_setup(data_corpus)
@@ -102,22 +131,32 @@ if __name__ == "__main__":
     # Uncomment below statements if you have already saved the model
 
     # load_weights = tl.files.load_npz(name='model.npz')
-    #tl.files.load_hdf5_to_weights('model.hdf5', model_, skip=False)
+    tl.files.load_hdf5_to_weights('model.hdf5', model_, skip=False)
+    #print('loaded model')
     #print('loaded model')
     #tl.files.assign_weights(load_weights, model_)
 
     optimizer = tf.optimizers.Adam(learning_rate=0.001)
+    #+
     model_.train()
 
 
 
-    db=sqlite3.connect('chatbot.db')
-    cursor=db.cursor()
-    cursor.execute('''create table user_inputs(questions TEXT)''')
-    db.commit()
-
+#    db=sqlite3.connect('chatbot.db')
+ #   cursor=db.cursor()
+ #   cursor.execute('''create table user_inputs(questions TEXT)''')
+#    db.commit()
+    
     #seeds = ["happy birthday have a nice day",
-               #  "donald trump won last nights presidential debate according to snap online polls"]
+     #           "donald trump won last nights presidential debate according to snap online polls"]
+
+    #for seed in seeds:
+      #      print("Query >", seed)
+       #     top_n = 3
+        #    for i in range(top_n):
+         #       sentence = inference(seed, top_n)
+          #      print(" >", ' '.join(sentence))
+    '''
     for epoch in range(num_epochs):
         model_.train()
         trainX, trainY = shuffle(trainX, trainY, random_state=0)
@@ -150,40 +189,70 @@ if __name__ == "__main__":
         print('Epoch [{}/{}]: loss {:.4f}'.format(epoch + 1, num_epochs, total_loss / n_iter))
         tl.files.save_weights_to_hdf5('model.hdf5', model_)
         print("model saved")   
-        	
-    i=0
-    while(i<10):
-        user_input=input()
-        if(user_input=="Bye"):
+    '''
+    dictionary={}
+    list_of_topics=[]
+
+
+    while(1):
+        user_input=input("Enter query: ")
+        num_word=len(user_input.split())
+
+        if(user_input=="Bye" or user_input=="bye"):
             print("Bye")
-            i=11
             break
+        elif(num_word<4):
+            sentence=inference(user_input,1)
+            print(">",' '.join(sentence))
         else:
-            blob=TextBlob(user_input)
-            if(blob.sentiment.polarity<0):
-                count+=1
-                cursor.execute('''insert into user_inputs(questions) VALUES(?)''', (user_input,))
-                db.commit()
+            topic=classification(user_input)
+            if(topic not in list_of_topics):
+                list_of_topics.append(topic)
+                dictionary[topic]=[user_input]
             else:
-                pass
-                
+                dictionary[topic].append(user_input)
+                         
             print("Query >", user_input)
-            top_n=3
+            top_n=1
             for i in range(top_n):
                 sentence=inference(user_input, top_n)
                 print(">",' '.join(sentence))
+
     
-    
-           
+#Follow up
+#Follow up
+    print('Beginning of follow up.....')
+    while(1):
+        user_input=input("Enter text: ")
+        text1=nlp(user_input)
+        topic=classification(user_input)
+        if(topic not in list_of_topics):
+            list_of_topics.append(topic)
+            dictionary[topic]=user_input
+        else:
+            list_of_conv=dictionary[topic]
+            for text in list_of_conv:
+                sentiment=sentiment_extraction(text)
+                text2=nlp(text)
+                if(text2.similarity(text1)>=0.8 and sentiment<0):
+                    print(text,sentiment,user_input)
+                    #Do follow up
+                    print("Bot> ", user_input)
+                    sentence=inference(user_input,1)
+                    print(">",' '.join(sentence))
+                else:
+                    #Generate new question
+                    pass
+
 
 #Follow up
 #create db, input respones to db
 #if db is negative, store it send it back to model afte some time decided by the decision system
-   
+'''
     
     print('FOLLOW UP BEGINNING.......')
         #insert into table
-    db.close()
+    #db.close()
 
     #New start
     #follow up
@@ -211,4 +280,7 @@ if __name__ == "__main__":
             top_n = 3
             for i in range(top_n):
                 sentence = inference(seed, top_n)
-print(" >", ' '.join(sentence))
+                print(" >", ' '.join(sentence))
+'''
+
+

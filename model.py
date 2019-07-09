@@ -13,18 +13,48 @@ import sqlite3
 import spacy
 from textblob import TextBlob
 import time
-
+import matplotlib.pyplot as plt
 import json
 import spacy
+from spacy.matcher import Matcher
 from ibm_watson import NaturalLanguageUnderstandingV1
 from ibm_watson.natural_language_understanding_v1 import Features, SentimentOptions, EmotionOptions, KeywordsOptions, SemanticRolesOptions, CategoriesOptions
-natural_language_understanding=NaturalLanguageUnderstandingV1(version='2018-11-16',iam_apikey='##############',url='############')
+natural_language_understanding=NaturalLanguageUnderstandingV1(version='2018-11-16',iam_apikey='KoTo6dvndPQEAy3T9LNqZMGJEHhEa2Yy3tHLyxTNO50r',url='https://gateway-lon.watsonplatform.net/natural-language-understanding/api')
 
 nlp=spacy.load("en_core_web_md")
 
 print('All libraries imported')
 
+f=open("final.json", mode="r",encoding="utf-8",errors="ignore")
+data1=json.load(f)
+f.close()
 
+
+
+
+#####MATCHER PATTERN#####
+matcher=Matcher(nlp.vocab)
+pattern=[{'POS':'NOUN'}]
+matcher.add('PNOUN_PATTERN',None,pattern)
+
+
+#
+# print(type(f.readlines()))
+'''
+list_of_questions=[]
+l=q.readlines()
+for line in l:
+    line=line.strip()
+    list_of_questions.append(line)
+
+list_of_answers=[]
+l=a.readlines()
+for line in l:
+    line=line.strip()
+    list_of_answers.append(line)
+q.close()
+a.close()
+'''
 def initial_setup(data_corpus):
     metadata, idx_q, idx_a = data.load_data(PATH='data/{}/'.format(data_corpus)) 
     (trainX, trainY), (testX, testY), (validX, validY) = data.split_dataset(idx_q, idx_a)
@@ -57,6 +87,76 @@ def sentiment_extraction(user_input):
     score=doc["score"]
     print("sentiment: ",score)
     return score
+
+
+def keyword_extraction(user_input):
+    splitted=user_input.split()
+    subject=''
+    if(len(splitted)>3):
+        keywords=natural_language_understanding.analyze(text=user_input,
+        features=Features(semantic_roles=SemanticRolesOptions())).get_result()
+        print(json.dumps(keywords,indent=2))
+        
+        l=keywords["semantic_roles"]
+        if(len(l)!=0):
+            if "i" in splitted:
+                semantic_roles=keywords["semantic_roles"]
+                ob=semantic_roles[0]
+                subject=ob["object"]
+                subject=subject["text"]
+                print("subject: ",subject)
+            else:
+                semantic_roles=keywords["semantic_roles"]
+                sub=semantic_roles[0]
+                subject=sub["subject"]
+                subject=subject["text"]
+                print("subject: ",subject)
+        else:
+            pass
+    else:
+        doc=nlp(user_input)
+        matches=matcher(doc)
+        for match_id, start,end in matches:
+            print("subject: ",doc[start:end].text)
+            subject=doc[start:end].text
+
+    list_of_sub=subject.split()
+    return list_of_sub
+
+def get_topics(dictionary):
+    return dictionary.keys()
+
+def intersection(lst1,lst2):
+    return set(lst1).intersection(lst2)
+
+
+def check(user_input, list_of_topics_initial):
+    print("Searching in initial topics")
+    text1=nlp(user_input)
+    sentence=''
+    list_of_sub=keyword_extraction(user_input)
+    common=intersection(list_of_topics_initial,list_of_sub)
+    common=list(common)
+    common=''.join(common)
+    print("common: ",common)
+    if (common==''):
+        pass
+    else:
+        for topic in list_of_topics_initial:
+            if(common==topic or common in topic):
+                qa=data1[topic]
+                for i in range(0,len(qa),2):
+                    text2=qa[i]
+                    text2=nlp(text2)
+                    if(text2.similarity(text1)>=0.9):
+                        sentence=qa[i+1]
+                    else:
+                        pass
+        print("sentence: ",sentence)
+    return sentence
+
+def filter_line(line, whitelist):
+    return ''.join([ ch for ch in line if ch in whitelist ])
 
 
 
@@ -92,7 +192,7 @@ if __name__ == "__main__":
 
     src_vocab_size = tgt_vocab_size = src_vocab_size + 2
 
-    num_epochs = 50
+    #num_epochs = 50
     vocabulary_size = src_vocab_size
     
     count=0 #For keeping count of entries into db
@@ -110,6 +210,8 @@ if __name__ == "__main__":
         return sentence
 
     decoder_seq_length = 20
+    blacklist = '!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~\''
+    whitelist = '0123456789abcdefghijklmnopqrstuvwxyz '
     '''
     model_=model_ = Seq2seqLuongAttention(
             hidden_size=128, cell=tf.keras.layers.SimpleRNNCell,
@@ -118,7 +220,7 @@ if __name__ == "__main__":
 )
     '''
 
-
+    
     model_ = Seq2seq(
         decoder_seq_length = decoder_seq_length,
        cell_enc=tf.keras.layers.LSTMCell,
@@ -128,6 +230,10 @@ if __name__ == "__main__":
      embedding_layer=tl.layers.Embedding(vocabulary_size=vocabulary_size, embedding_size=emb_dim))
     
 
+
+
+
+    
     # Uncomment below statements if you have already saved the model
 
     # load_weights = tl.files.load_npz(name='model.npz')
@@ -141,7 +247,12 @@ if __name__ == "__main__":
     model_.train()
 
 
-
+    list_of_topics_initial=get_topics(data1)
+    #print(list_of_topics_initial)
+    list_of_topics_initial=list(list_of_topics_initial)
+    #print(list_of_topics_initial)
+    #print(type(list_of_topics_initial))
+    
 #    db=sqlite3.connect('chatbot.db')
  #   cursor=db.cursor()
  #   cursor.execute('''create table user_inputs(questions TEXT)''')
@@ -190,33 +301,64 @@ if __name__ == "__main__":
         tl.files.save_weights_to_hdf5('model.hdf5', model_)
         print("model saved")   
     '''
+
+
+    ##################################################################################################
+    #Good till here
     dictionary={}
-    list_of_topics=[]
+    list_of_topics_fp=[]
+    ans=[]
+
+    
 
 
     while(1):
         user_input=input("Enter query: ")
+        user_input=filter_line(user_input,whitelist)
         num_word=len(user_input.split())
+        print(user_input)
+        print(num_word)
+        sent=check(user_input,list_of_topics_initial)
 
         if(user_input=="Bye" or user_input=="bye"):
             print("Bye")
             break
         elif(num_word<4):
-            sentence=inference(user_input,1)
-            print(">",' '.join(sentence))
-        else:
-            topic=classification(user_input)
-            if(topic not in list_of_topics):
-                list_of_topics.append(topic)
-                dictionary[topic]=[user_input]
-            else:
-                dictionary[topic].append(user_input)
-                         
-            print("Query >", user_input)
-            top_n=1
-            for i in range(top_n):
-                sentence=inference(user_input, top_n)
+            if(sent!=''):
+                print("Searching")
+                #sentence=''.join(sent)
+                print(">",sent)
+                sent=''
+            else: 
+                print("Generating")   
+                sentence=inference(user_input,1)
                 print(">",' '.join(sentence))
+        else:
+            if(sent!=''):
+                print("Searching")
+                topic=classification(user_input)
+                if(topic not in list_of_topics_fp):
+                    list_of_topics_fp.append(topic)
+                    dictionary[topic]=[user_input]
+                else:
+                    dictionary[topic].append(user_input)
+                #sentence=''.join(sent)
+                print(">",sent)
+                sent=''
+            else:
+                print("Generating")
+                topic=classification(user_input)
+                if(topic not in list_of_topics_fp):
+                    list_of_topics_fp.append(topic)
+                    dictionary[topic]=[user_input]
+                else:
+                    dictionary[topic].append(user_input)
+                            
+                print("Query >", user_input)
+                top_n=1
+                for i in range(top_n):
+                    sentence=inference(user_input, top_n)
+                    print(">",' '.join(sentence))
 
     
 #Follow up
@@ -226,23 +368,28 @@ if __name__ == "__main__":
         user_input=input("Enter text: ")
         text1=nlp(user_input)
         topic=classification(user_input)
-        if(topic not in list_of_topics):
-            list_of_topics.append(topic)
-            dictionary[topic]=user_input
+        if(topic not in list_of_topics_fp):
+            list_of_topics_fp.append(topic)
+            dictionary[topic]=[user_input]
         else:
             list_of_conv=dictionary[topic]
             for text in list_of_conv:
-                sentiment=sentiment_extraction(text)
-                text2=nlp(text)
-                if(text2.similarity(text1)>=0.8 and sentiment<0):
-                    print(text,sentiment,user_input)
-                    #Do follow up
-                    print("Bot> ", user_input)
-                    sentence=inference(user_input,1)
-                    print(">",' '.join(sentence))
-                else:
-                    #Generate new question
+                num_word2=len(user_input.split())
+                if num_word2<4:
                     pass
+                else:
+                    sentiment=sentiment_extraction(text)
+                    text2=nlp(text)
+                    if(text2.similarity(text1)>=0.8 and sentiment<0):
+                        print(text,sentiment,user_input)
+                        #Do follow up
+                        print("Bot> ", user_input)
+                        sentence=inference(user_input,1)
+                        print(">",' '.join(sentence))
+                    else:
+                        #Generate new question
+                        pass
+
 
 
 #Follow up

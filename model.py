@@ -14,13 +14,14 @@ import spacy
 from textblob import TextBlob
 import time
 import matplotlib.pyplot as plt
+import wikipedia
 import json
 import spacy
 from spacy.matcher import Matcher
 from ibm_watson import NaturalLanguageUnderstandingV1
 from ibm_watson.natural_language_understanding_v1 import Features, SentimentOptions, EmotionOptions, KeywordsOptions, SemanticRolesOptions, CategoriesOptions
-natural_language_understanding=NaturalLanguageUnderstandingV1(version='2018-11-16',iam_apikey='******************',url='https://gateway-lon.watsonplatform.net/natural-language-understanding/api')
-
+natural_language_understanding=NaturalLanguageUnderstandingV1(version='2018-11-16',iam_apikey='b7ZbeExf93pONMhCcP7zBHXcXzck4tpe_3ZRtu07GnFI',url='https://gateway-lon.watsonplatform.net/natural-language-understanding/api')
+#iam_apikey='KoTo6dvndPQEAy3T9LNqZMGJEHhEa2Yy3tHLyxTNO50r'
 nlp=spacy.load("en_core_web_md")
 
 print('All libraries imported')
@@ -33,9 +34,9 @@ f.close()
 
 
 #####MATCHER PATTERN#####
-matcher=Matcher(nlp.vocab)
-pattern=[{'POS':'NOUN'}]
-matcher.add('PNOUN_PATTERN',None,pattern)
+#matcher=Matcher(nlp.vocab)
+#pattern=[{'POS':'NOUN'}]
+#matcher.add('PNOUN_PATTERN',None,pattern)
 
 
 #
@@ -79,9 +80,10 @@ def classification(user_input):
     print("topic: ",topic)
     return topic
 
+
 def sentiment_extraction(user_input):
     sentiment=natural_language_understanding.analyze(text=user_input,
-    features=Features(sentiment=SentimentOptions(text))).get_result()
+    features=Features(sentiment=SentimentOptions(user_input))).get_result()
     dic=sentiment["sentiment"]
     doc=dic["document"]
     score=doc["score"]
@@ -90,6 +92,7 @@ def sentiment_extraction(user_input):
 
 
 def keyword_extraction(user_input):
+    user_input=user_input.strip()
     splitted=user_input.split()
     subject=''
     if(len(splitted)>3):
@@ -112,15 +115,38 @@ def keyword_extraction(user_input):
                 subject=subject["text"]
                 print("subject: ",subject)
         else:
-            pass
+            matcher=Matcher(nlp.vocab)
+            pattern=[{'POS':'NOUN'}]
+            matcher.add('NOUN_PATTERN',None,pattern)
+            doc=nlp(user_input)
+            for token in doc:
+                print(token.text,token.pos_)
+            matches=matcher(doc)
+            subs=[]
+            for match_id, start,end in matches:
+                print("subject: ",doc[start:end].text)
+                subs.append(doc[start:end].text)
+            subject=' '.join(subs)
+            print("subject: ",subject)
+            
     else:
+        matcher=Matcher(nlp.vocab)
+        pattern=[{'POS':'NOUN'}]
+        matcher.add('NOUN_PATTERN',None,pattern)
         doc=nlp(user_input)
+        for token in doc:
+                print(token.text,token.pos_)
         matches=matcher(doc)
+        subs=[]
         for match_id, start,end in matches:
             print("subject: ",doc[start:end].text)
-            subject=doc[start:end].text
+            subs.append(doc[start:end].text)
+        subject=' '.join(subs)
+        print("subject: ",subject)
+            
 
     list_of_sub=subject.split()
+    print(list_of_sub)
     return list_of_sub
 
 def get_topics(dictionary):
@@ -159,6 +185,27 @@ def filter_line(line, whitelist):
     return ''.join([ ch for ch in line if ch in whitelist ])
 
 
+def time_delay(list_of_emo_convo):
+    sed_one=0
+    if(len(list_of_emo_convo)<=10):
+        for i in list_of_emo_convo:
+            sentiment=sentiment_extraction(i)
+            if(sentiment>sed_one):
+                sed_one=sentiment
+                sed_statement=i
+    else:
+        sed_statement=list_of_emo_convo[-1]
+        sed_one=sentiment_extraction(sed_statement)
+    time_delay=sed_one*100
+    return time_delay
+
+def wiki_extract(keywords):
+    try:
+        wiki=wikipedia.summary(keywords)
+        return wiki
+    except:
+        wiki=''
+        return wiki
 
 if __name__ == "__main__":
     data_corpus = "squad"
@@ -308,61 +355,96 @@ if __name__ == "__main__":
     dictionary={}
     list_of_topics_fp=[]
     ans=[]
+    list_of_emo_convo=[]
 
+    initial=open("ini.json",mode="r",encoding="utf-8",errors="ignore")
+    initial_input=json.load(initial)
+    us_in=input("User: ")
+    expected_inputs=initial_input["start_inputs"]
+    us_in=filter_line(us_in,whitelist)
+
+    if us_in in expected_inputs:
+        print(''.join(initial_input["start_response"]))
+    else:
+        print("How may I help you?")
     
-
-
+    
     while(1):
         user_input=input("Enter query: ")
         user_input=filter_line(user_input,whitelist)
-        num_word=len(user_input.split())
-        print(user_input)
-        print(num_word)
-        sent=check(user_input,list_of_topics_initial)
-
-        if(user_input=="Bye" or user_input=="bye"):
-            print("Bye")
-            break
-        elif(num_word<4):
-            if(sent!=''):
-                print("Searching")
-                #sentence=''.join(sent)
-                print(">",sent)
-                sent=''
-            else: 
-                print("Generating")   
-                sentence=inference(user_input,1)
-                print(">",' '.join(sentence))
+        keywords=' '.join(keyword_extraction(user_input))
+        list_of_user_input=user_input.split()
+        if("what" in list_of_user_input and len(list_of_user_input)<=4):
+            keywords=list_of_user_input[-2:]
+            keywords=' '.join(list_of_user_input)
+            print("keywords: ",keywords)
+            wiki=wiki_extract(keywords)
         else:
-            if(sent!=''):
-                print("Searching")
-                topic=classification(user_input)
-                if(topic not in list_of_topics_fp):
-                    list_of_topics_fp.append(topic)
-                    dictionary[topic]=[user_input]
-                else:
-                    dictionary[topic].append(user_input)
-                #sentence=''.join(sent)
-                print(">",sent)
-                sent=''
+            wiki=wiki_extract(keywords)
+        sentiment=sentiment_extraction(user_input)
+        num_word=len(user_input.split())
+        if(wiki==''):
+            if(num_word>3 and sentiment<0):
+                list_of_emo_convo.append(user_input)
             else:
-                print("Generating")
-                topic=classification(user_input)
-                if(topic not in list_of_topics_fp):
-                    list_of_topics_fp.append(topic)
-                    dictionary[topic]=[user_input]
-                else:
-                    dictionary[topic].append(user_input)
-                            
-                print("Query >", user_input)
-                top_n=1
-                for i in range(top_n):
-                    sentence=inference(user_input, top_n)
-                    print(">",' '.join(sentence))
+                pass
+            print(user_input)
+            print(num_word)
+            sent=check(user_input,list_of_topics_initial)
 
+            if(user_input=="Bye" or user_input=="bye"):
+                print("Bye")
+                break
+            elif(num_word<4):
+                if(sent!=''):
+                    print("Searching")
+                    #sentence=''.join(sent)
+                    print(">",sent)
+                    sent=''
+                else: 
+                    print("Generating")   
+                    sentence=inference(user_input,1)
+                    print(">",' '.join(sentence))
+            else:
+                if(sent!=''):
+                    print("Searching")
+                    topic=classification(user_input)
+                    if(topic not in list_of_topics_fp):
+                        list_of_topics_fp.append(topic)
+                        dictionary[topic]=[user_input]
+                    else:
+                        dictionary[topic].append(user_input)
+                    #sentence=''.join(sent)
+                    print(">",sent)
+                    sent=''
+                else:
+                    print("Generating")
+                    topic=classification(user_input)
+                    if(topic not in list_of_topics_fp):
+                        list_of_topics_fp.append(topic)
+                        dictionary[topic]=[user_input]
+                    else:
+                        dictionary[topic].append(user_input)
+                                
+                    print("Query >", user_input)
+                    top_n=1
+                    for i in range(top_n):
+                        sentence=inference(user_input, top_n)
+                        print(">",' '.join(sentence))
+        else:
+            print(">",wiki)
     
 #Follow up
 #Follow up
+#TIME DELAY-STUPID VERSION
+
+    time_taken=time_delay(list_of_emo_convo)
+    print("Sleeping......")
+    time.sleep(time_taken)
+    print("What's up nibbas?!!!!!")
+
+   
+   
     print('Beginning of follow up.....')
     while(1):
         user_input=input("Enter text: ")

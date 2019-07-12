@@ -22,8 +22,7 @@ from spacy.lang.en import English
 from spacy.matcher import Matcher
 from ibm_watson import NaturalLanguageUnderstandingV1
 from ibm_watson.natural_language_understanding_v1 import Features, SentimentOptions, EmotionOptions, KeywordsOptions, SemanticRolesOptions, CategoriesOptions
-natural_language_understanding=NaturalLanguageUnderstandingV1(version='2018-11-16',iam_apikey='KoTo6dvndPQEAy3T9LNqZMGJEHhEa2Yy3tHLyxTNO50r',url='https://gateway-lon.watsonplatform.net/natural-language-understanding/api')
-#iam_apikey='KoTo6dvndPQEAy3T9LNqZMGJEHhEa2Yy3tHLyxTNO50r'
+natural_language_understanding=NaturalLanguageUnderstandingV1(version='2018-11-16',iam_apikey='********************************',url='https://gateway-lon.watsonplatform.net/natural-language-understanding/api')
 nlp=spacy.load("en_core_web_md")
 nlp_sent=English()
 sentencizer=nlp_sent.create_pipe("sentencizer")

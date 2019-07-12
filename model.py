@@ -10,6 +10,7 @@ from tensorlayer.models.seq2seq import Seq2seq
 from seq2seq_attention import Seq2seqLuongAttention
 import os
 import sqlite3
+import random
 import spacy
 from textblob import TextBlob
 import time
@@ -17,12 +18,18 @@ import matplotlib.pyplot as plt
 import wikipedia
 import json
 import spacy
+from spacy.lang.en import English
 from spacy.matcher import Matcher
 from ibm_watson import NaturalLanguageUnderstandingV1
 from ibm_watson.natural_language_understanding_v1 import Features, SentimentOptions, EmotionOptions, KeywordsOptions, SemanticRolesOptions, CategoriesOptions
-natural_language_understanding=NaturalLanguageUnderstandingV1(version='2018-11-16',iam_apikey='**********************',url='https://gateway-lon.watsonplatform.net/natural-language-understanding/api')
-#iam_apikey='**********************'
+
+natural_language_understanding=NaturalLanguageUnderstandingV1(version='2018-11-16',iam_apikey='********************************',url='https://gateway-lon.watsonplatform.net/natural-language-understanding/api')
+
 nlp=spacy.load("en_core_web_md")
+nlp_sent=English()
+sentencizer=nlp_sent.create_pipe("sentencizer")
+nlp_sent.add_pipe(sentencizer)
+
 
 print('All libraries imported')
 
@@ -30,7 +37,7 @@ f=open("final.json", mode="r",encoding="utf-8",errors="ignore")
 data1=json.load(f)
 f.close()
 
-
+#WikiPedia extraction
 
 
 #####MATCHER PATTERN#####
@@ -77,7 +84,7 @@ def classification(user_input):
     label=category["label"]
     label=label.split("/")
     topic=label[1]
-    print("topic: ",topic)
+    #print("topic: ",topic)
     return topic
 
 
@@ -87,7 +94,7 @@ def sentiment_extraction(user_input):
     dic=sentiment["sentiment"]
     doc=dic["document"]
     score=doc["score"]
-    print("sentiment: ",score)
+   # print("sentiment: ",score)
     return score
 
 
@@ -107,13 +114,13 @@ def keyword_extraction(user_input):
                 ob=semantic_roles[0]
                 subject=ob["object"]
                 subject=subject["text"]
-                print("subject: ",subject)
+         #       print("subject: ",subject)
             else:
                 semantic_roles=keywords["semantic_roles"]
                 sub=semantic_roles[0]
                 subject=sub["subject"]
                 subject=subject["text"]
-                print("subject: ",subject)
+        #        print("subject: ",subject)
         else:
             matcher=Matcher(nlp.vocab)
             pattern=[{'POS':'NOUN'}]
@@ -127,7 +134,7 @@ def keyword_extraction(user_input):
                 print("subject: ",doc[start:end].text)
                 subs.append(doc[start:end].text)
             subject=' '.join(subs)
-            print("subject: ",subject)
+       #     print("subject: ",subject)
             
     else:
         matcher=Matcher(nlp.vocab)
@@ -139,10 +146,10 @@ def keyword_extraction(user_input):
         matches=matcher(doc)
         subs=[]
         for match_id, start,end in matches:
-            print("subject: ",doc[start:end].text)
+      #      print("subject: ",doc[start:end].text)
             subs.append(doc[start:end].text)
         subject=' '.join(subs)
-        print("subject: ",subject)
+     #   print("subject: ",subject)
             
 
     list_of_sub=subject.split()
@@ -157,14 +164,14 @@ def intersection(lst1,lst2):
 
 
 def check(user_input, list_of_topics_initial):
-    print("Searching in initial topics")
+    #print("Searching in initial topics")
     text1=nlp(user_input)
     sentence=''
     list_of_sub=keyword_extraction(user_input)
     common=intersection(list_of_topics_initial,list_of_sub)
     common=list(common)
     common=''.join(common)
-    print("common: ",common)
+    #print("common: ",common)
     if (common==''):
         pass
     else:
@@ -202,10 +209,65 @@ def time_delay(list_of_emo_convo):
 def wiki_extract(keywords):
     try:
         wiki=wikipedia.summary(keywords)
+       # print("Type-wiki: ",type(wiki))
+        wiki_list=wiki.split('.')
+       # print('wiki_list: ',wiki_list)
+
         return wiki
     except:
         wiki=''
         return wiki
+
+def idk(user_input,dictionary,wiki):
+    imp_stuff=[]
+    wiki_list=wiki.split('.')
+    if("where" in user_input):
+        for i in dictionary:
+            if(dictionary[i]=="GPE"):
+                print(i)
+                imp_stuff.append(i)
+        
+        return imp_stuff
+    elif("what" in user_input):
+        return '.'.join(wiki_list[:3])
+    elif("when" in user_input):
+        for i in dictionary:
+            if(dictionary[i]=="DATE"):
+                print(i)
+                imp_stuff.append(i)
+        return imp_stuff     
+    elif("who" in user_input):
+        return wiki          #Need to change it
+    elif("why" in user_input):
+        return '.'.join(wiki_list[:3])
+    elif("which" in user_input):
+        #idk
+        return '.'.join(wiki_list[:3])
+    elif("is"==user_input[0]):
+        if(random.random()>0.5):
+            answer='yes'
+            return answer
+        else:
+            answer='no'
+            return answer
+        #Random stuff
+    else:
+        print("Could not understand. Get out.") 
+    
+
+def info_extraction(wiki,user_input):
+    list_of_wiki_inputs=wiki.split('.')
+    dictionary={}
+    for text in list_of_wiki_inputs:
+        doc=nlp(text)
+        for ent in doc.ents:
+            dictionary[ent.text]=ent.label_
+    return dictionary
+
+        
+
+    
+
 
 if __name__ == "__main__":
     data_corpus = "squad"
@@ -372,15 +434,82 @@ if __name__ == "__main__":
     while(1):
         user_input=input("Enter query: ")
         user_input=filter_line(user_input,whitelist)
-        keywords=' '.join(keyword_extraction(user_input))
+        list_of_keywords=keyword_extraction(user_input)
+        keywords=' '.join(list_of_keywords)
         list_of_user_input=user_input.split()
-        if("what" in list_of_user_input and len(list_of_user_input)<=4):
+        if("what" in list_of_user_input and "is" in list_of_user_input and len(list_of_user_input)<=4):
             keywords=list_of_user_input[-2:]
             keywords=' '.join(list_of_user_input)
-            print("keywords: ",keywords)
+            #print("keywords: ",keywords)
             wiki=wiki_extract(keywords)
+            dictionary_wiki=info_extraction(wiki,user_input)
+            wiki_keywords=idk(user_input,dictionary_wiki, wiki)
+            #print("wiki keywords",wiki_keywords)
+            #print(type(wiki_keywords))
+            if(type(wiki_keywords)==list):
+                #print('wiki_split',wiki.split('.'))
+                for text in wiki.split('.'):
+                    count=0
+                    for key in wiki_keywords:
+                        if key in text:
+                            count+=1
+                    if count>=1:
+                        list1=[]
+                        list1.append(text)
+                        wiki=''.join(list1)           
+                        #wiki=text
+                        break
+            else:
+                wiki=wiki_keywords
+                    
+
+
         else:
             wiki=wiki_extract(keywords)
+            dictionary_wiki=info_extraction(wiki,user_input)
+            wiki_keywords=idk(user_input,dictionary_wiki, wiki)
+            #print(type(wiki_keywords))
+            #print(len(wiki_keywords))
+            #print("wiki keywords",wiki_keywords)
+            if(type(wiki_keywords)==list):
+                #print("inside ")
+                #print('wiki_split',wiki.split('.'))
+                doc=nlp_sent(wiki)
+                #for sent in doc.sents:
+                if "who" in user_input:
+                    for sent in doc.sents:
+                    #for text in wiki.split('.'):
+                        #print('text: ', text)
+
+                        count=0
+
+                        for key in list_of_keywords:
+                            if key in text:
+                                count+=1
+
+                        if(count>=1):
+                            list1=[]
+                            list1.append(sent)
+                            wiki='.'.join(list1)
+                            #wiki=sent
+                        
+                    #print(count)
+                else:
+                    for text in wiki.split('.'):
+                        count=0
+                        for key in wiki_keywords:
+                            if key in text:
+                                count+=1
+                        if count>=1:
+                            list1=[]
+                            list1.append(text)
+                            wiki=''.join(list1)           
+                        #wiki=text
+                            break
+            else:
+                wiki=wiki_keywords
+        
+
         sentiment=sentiment_extraction(user_input)
         num_word=len(user_input.split())
         if(wiki==''):
@@ -388,8 +517,8 @@ if __name__ == "__main__":
                 list_of_emo_convo.append(user_input)
             else:
                 pass
-            print(user_input)
-            print(num_word)
+         #   print(user_input)
+          #  print(num_word)
             sent=check(user_input,list_of_topics_initial)
 
             if(user_input=="Bye" or user_input=="bye"):
@@ -433,7 +562,7 @@ if __name__ == "__main__":
                         print(">",' '.join(sentence))
         else:
             print(">",wiki)
-    
+            
 #Follow up
 #Follow up
 #TIME DELAY-STUPID VERSION

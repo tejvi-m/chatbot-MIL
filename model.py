@@ -24,12 +24,14 @@ from ibm_watson import NaturalLanguageUnderstandingV1
 from ibm_watson.natural_language_understanding_v1 import Features, SentimentOptions, EmotionOptions, KeywordsOptions, SemanticRolesOptions, CategoriesOptions
 
 
+
 import dialogflow_v2 as dialogflow
 import os
 os.environ['GOOGLE_APPLICATION_CREDENTIALS']=<json path>
 
 natural_language_understanding=NaturalLanguageUnderstandingV1(version='2018-11-16',iam_apikey='xxxxxxxxxxxx'
 ',url='https://gateway-lon.watsonplatform.net/natural-language-understanding/api')
+
 
 nlp=spacy.load("en_core_web_md")
 nlp_sent=English()
@@ -240,7 +242,9 @@ def idk(user_input,dictionary,wiki):
             if(dictionary[i]=="DATE"):
                 print(i)
                 imp_stuff.append(i)
+
         return imp_stuff
+
     elif("who" in user_input):
         return wiki          #Need to change it
     elif("why" in user_input):
@@ -257,6 +261,7 @@ def idk(user_input,dictionary,wiki):
             return answer
         #Random stuff
     else:
+
         print("Could not understand. Get out.")
 
 
@@ -274,6 +279,7 @@ def detect_intent_texts(project_id, session_id, text, language_code):
             return response.query_result.fulfillment_text
 
 
+
 def info_extraction(wiki,user_input):
     list_of_wiki_inputs=wiki.split('.')
     dictionary={}
@@ -282,8 +288,6 @@ def info_extraction(wiki,user_input):
         for ent in doc.ents:
             dictionary[ent.text]=ent.label_
     return dictionary
-
-
 
 
 
@@ -474,7 +478,9 @@ if __name__ == "__main__":
                     if count>=1:
                         list1=[]
                         list1.append(text)
+
                         wiki=''.join(list1)
+
                         #wiki=text
                         break
             else:
@@ -521,7 +527,9 @@ if __name__ == "__main__":
                         if count>=1:
                             list1=[]
                             list1.append(text)
+
                             wiki=''.join(list1)
+
                         #wiki=text
                             break
             else:

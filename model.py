@@ -23,7 +23,15 @@ from spacy.matcher import Matcher
 from ibm_watson import NaturalLanguageUnderstandingV1
 from ibm_watson.natural_language_understanding_v1 import Features, SentimentOptions, EmotionOptions, KeywordsOptions, SemanticRolesOptions, CategoriesOptions
 
-natural_language_understanding=NaturalLanguageUnderstandingV1(version='2018-11-16',iam_apikey='********************************',url='https://gateway-lon.watsonplatform.net/natural-language-understanding/api')
+
+
+import dialogflow_v2 as dialogflow
+import os
+os.environ['GOOGLE_APPLICATION_CREDENTIALS']=<json path>
+
+natural_language_understanding=NaturalLanguageUnderstandingV1(version='2018-11-16',iam_apikey='xxxxxxxxxxxx'
+',url='https://gateway-lon.watsonplatform.net/natural-language-understanding/api')
+
 
 nlp=spacy.load("en_core_web_md")
 nlp_sent=English()
@@ -54,7 +62,6 @@ l=q.readlines()
 for line in l:
     line=line.strip()
     list_of_questions.append(line)
-
 list_of_answers=[]
 l=a.readlines()
 for line in l:
@@ -64,7 +71,7 @@ q.close()
 a.close()
 '''
 def initial_setup(data_corpus):
-    metadata, idx_q, idx_a = data.load_data(PATH='data/{}/'.format(data_corpus)) 
+    metadata, idx_q, idx_a = data.load_data(PATH='data/{}/'.format(data_corpus))
     (trainX, trainY), (testX, testY), (validX, validY) = data.split_dataset(idx_q, idx_a)
     trainX = tl.prepro.remove_pad_sequences(trainX.tolist())
     trainY = tl.prepro.remove_pad_sequences(trainY.tolist())
@@ -106,7 +113,7 @@ def keyword_extraction(user_input):
         keywords=natural_language_understanding.analyze(text=user_input,
         features=Features(semantic_roles=SemanticRolesOptions())).get_result()
         print(json.dumps(keywords,indent=2))
-        
+
         l=keywords["semantic_roles"]
         if(len(l)!=0):
             if "i" in splitted:
@@ -135,7 +142,7 @@ def keyword_extraction(user_input):
                 subs.append(doc[start:end].text)
             subject=' '.join(subs)
        #     print("subject: ",subject)
-            
+
     else:
         matcher=Matcher(nlp.vocab)
         pattern=[{'POS':'NOUN'}]
@@ -150,7 +157,7 @@ def keyword_extraction(user_input):
             subs.append(doc[start:end].text)
         subject=' '.join(subs)
      #   print("subject: ",subject)
-            
+
 
     list_of_sub=subject.split()
     print(list_of_sub)
@@ -226,7 +233,7 @@ def idk(user_input,dictionary,wiki):
             if(dictionary[i]=="GPE"):
                 print(i)
                 imp_stuff.append(i)
-        
+
         return imp_stuff
     elif("what" in user_input):
         return '.'.join(wiki_list[:3])
@@ -235,7 +242,9 @@ def idk(user_input,dictionary,wiki):
             if(dictionary[i]=="DATE"):
                 print(i)
                 imp_stuff.append(i)
-        return imp_stuff     
+
+        return imp_stuff
+
     elif("who" in user_input):
         return wiki          #Need to change it
     elif("why" in user_input):
@@ -252,8 +261,24 @@ def idk(user_input,dictionary,wiki):
             return answer
         #Random stuff
     else:
-        print("Could not understand. Get out.") 
-    
+
+        print("Could not understand. Get out.")
+
+
+def detect_intent_texts(project_id, session_id, text, language_code):
+        session_client = dialogflow.SessionsClient()
+        session = session_client.session_path(project_id, session_id)
+
+        if text:
+            text_input = dialogflow.types.TextInput(
+                text=text, language_code=language_code)
+            query_input = dialogflow.types.QueryInput(text=text_input)
+            response = session_client.detect_intent(
+                session=session, query_input=query_input)
+
+            return response.query_result.fulfillment_text
+
+
 
 def info_extraction(wiki,user_input):
     list_of_wiki_inputs=wiki.split('.')
@@ -264,9 +289,7 @@ def info_extraction(wiki,user_input):
             dictionary[ent.text]=ent.label_
     return dictionary
 
-        
 
-    
 
 
 if __name__ == "__main__":
@@ -303,7 +326,7 @@ if __name__ == "__main__":
 
     #num_epochs = 50
     vocabulary_size = src_vocab_size
-    
+
     count=0 #For keeping count of entries into db
 
     def inference(seed, top_n):
@@ -329,7 +352,7 @@ if __name__ == "__main__":
 )
     '''
 
-    
+
     model_ = Seq2seq(
         decoder_seq_length = decoder_seq_length,
        cell_enc=tf.keras.layers.LSTMCell,
@@ -337,12 +360,12 @@ if __name__ == "__main__":
      n_layer=3,
      n_units=256,
      embedding_layer=tl.layers.Embedding(vocabulary_size=vocabulary_size, embedding_size=emb_dim))
-    
 
 
 
 
-    
+
+
     # Uncomment below statements if you have already saved the model
 
     # load_weights = tl.files.load_npz(name='model.npz')
@@ -361,12 +384,12 @@ if __name__ == "__main__":
     list_of_topics_initial=list(list_of_topics_initial)
     #print(list_of_topics_initial)
     #print(type(list_of_topics_initial))
-    
+
 #    db=sqlite3.connect('chatbot.db')
  #   cursor=db.cursor()
  #   cursor.execute('''create table user_inputs(questions TEXT)''')
 #    db.commit()
-    
+
     #seeds = ["happy birthday have a nice day",
      #           "donald trump won last nights presidential debate according to snap online polls"]
 
@@ -381,34 +404,30 @@ if __name__ == "__main__":
         model_.train()
         trainX, trainY = shuffle(trainX, trainY, random_state=0)
         total_loss, n_iter = 0, 0
-        for X, Y in tqdm(tl.iterate.minibatches(inputs=trainX, targets=trainY, batch_size=batch_size, shuffle=False), 
+        for X, Y in tqdm(tl.iterate.minibatches(inputs=trainX, targets=trainY, batch_size=batch_size, shuffle=False),
                         total=n_step, desc='Epoch[{}/{}]'.format(epoch + 1, num_epochs), leave=False):
-
             X = tl.prepro.pad_sequences(X)
             _target_seqs = tl.prepro.sequences_add_end_id(Y, end_id=end_id)
             _target_seqs = tl.prepro.pad_sequences(_target_seqs, maxlen=decoder_seq_length)
             _decode_seqs = tl.prepro.sequences_add_start_id(Y, start_id=start_id, remove_last=False)
             _decode_seqs = tl.prepro.pad_sequences(_decode_seqs, maxlen=decoder_seq_length)
             _target_mask = tl.prepro.sequences_get_mask(_target_seqs)
-
             with tf.GradientTape() as tape:
                 ## compute outputs
                 output = model_(inputs = [X, _decode_seqs])
-                
+
                 output = tf.reshape(output, [-1, vocabulary_size])
                 ## compute loss and update model
                 loss = cross_entropy_seq_with_mask(logits=output, target_seqs=_target_seqs, input_mask=_target_mask)
-
                 grad = tape.gradient(loss, model_.all_weights)
                 optimizer.apply_gradients(zip(grad, model_.all_weights))
-            
+
             total_loss += loss
             n_iter += 1
-
         # printing average loss after every epoch
         print('Epoch [{}/{}]: loss {:.4f}'.format(epoch + 1, num_epochs, total_loss / n_iter))
         tl.files.save_weights_to_hdf5('model.hdf5', model_)
-        print("model saved")   
+        print("model saved")
     '''
 
 
@@ -429,10 +448,13 @@ if __name__ == "__main__":
         print(''.join(initial_input["start_response"]))
     else:
         print("How may I help you?")
-    
-    
+
+
     while(1):
         user_input=input("Enter query: ")
+
+        print(detect_intent_texts('<project_id>','unique',user_input,'en'))
+
         user_input=filter_line(user_input,whitelist)
         list_of_keywords=keyword_extraction(user_input)
         keywords=' '.join(list_of_keywords)
@@ -456,12 +478,14 @@ if __name__ == "__main__":
                     if count>=1:
                         list1=[]
                         list1.append(text)
-                        wiki=''.join(list1)           
+
+                        wiki=''.join(list1)
+
                         #wiki=text
                         break
             else:
                 wiki=wiki_keywords
-                    
+
 
 
         else:
@@ -492,7 +516,7 @@ if __name__ == "__main__":
                             list1.append(sent)
                             wiki='.'.join(list1)
                             #wiki=sent
-                        
+
                     #print(count)
                 else:
                     for text in wiki.split('.'):
@@ -503,12 +527,14 @@ if __name__ == "__main__":
                         if count>=1:
                             list1=[]
                             list1.append(text)
-                            wiki=''.join(list1)           
+
+                            wiki=''.join(list1)
+
                         #wiki=text
                             break
             else:
                 wiki=wiki_keywords
-        
+
 
         sentiment=sentiment_extraction(user_input)
         num_word=len(user_input.split())
@@ -530,8 +556,8 @@ if __name__ == "__main__":
                     #sentence=''.join(sent)
                     print(">",sent)
                     sent=''
-                else: 
-                    print("Generating")   
+                else:
+                    print("Generating")
                     sentence=inference(user_input,1)
                     print(">",' '.join(sentence))
             else:
@@ -554,7 +580,7 @@ if __name__ == "__main__":
                         dictionary[topic]=[user_input]
                     else:
                         dictionary[topic].append(user_input)
-                                
+
                     print("Query >", user_input)
                     top_n=1
                     for i in range(top_n):
@@ -562,7 +588,7 @@ if __name__ == "__main__":
                         print(">",' '.join(sentence))
         else:
             print(">",wiki)
-            
+
 #Follow up
 #Follow up
 #TIME DELAY-STUPID VERSION
@@ -572,8 +598,8 @@ if __name__ == "__main__":
     time.sleep(time_taken)
     print("What's up nibbas?!!!!!")
 
-   
-   
+
+
     print('Beginning of follow up.....')
     while(1):
         user_input=input("Enter text: ")
@@ -607,32 +633,29 @@ if __name__ == "__main__":
 #create db, input respones to db
 #if db is negative, store it send it back to model afte some time decided by the decision system
 '''
-    
+
     print('FOLLOW UP BEGINNING.......')
         #insert into table
     #db.close()
-
     #New start
     #follow up
     #Loading model
     load_weights = tl.files.load_hdf5_to_weights('model.hdf5', model_, skip=False)
     #tl.files.assign_weights(load_weights, model_)
-    
+
     #Really need to do the decision system
     time.sleep(5)
-
     print('Beginning of follow up')
     #Connect to db and take in inputs
     db=sqlite3.connect('chatbot.db')
     cursor=db.cursor()
     inputs=cursor.fetchall()
-    
+
     seeds=[]
     for i in range(count):
         a=list(inputs[i])
         a=''.join(a)
         seeds.append(a)
-
     for seed in seeds:
             print("Query >", seed)
             top_n = 3
@@ -640,5 +663,3 @@ if __name__ == "__main__":
                 sentence = inference(seed, top_n)
                 print(" >", ' '.join(sentence))
 '''
-
-

@@ -1,8 +1,8 @@
-#importing all libraries
-#from functions import detect_intent_texts, initial_setup, classification, sentiment_extraction, keyword_extraction, get_topics, intersection, check, filter_line, time_delay,wiki_extract, info_extraction,idk
+#importing all statements
 import tensorflow as tf
 import tensorlayer as tl
 import numpy as np
+import pandas as pd
 from tensorlayer.cost import cross_entropy_seq, cross_entropy_seq_with_mask
 from tqdm import tqdm
 from sklearn.utils import shuffle
@@ -10,6 +10,7 @@ from data.squad import data
 from tensorlayer.models.seq2seq import Seq2seq
 from seq2seq_attention import Seq2seqLuongAttention
 import os
+import sys
 import random
 import spacy
 from textblob import TextBlob
@@ -24,9 +25,35 @@ from ibm_watson import NaturalLanguageUnderstandingV1
 from ibm_watson.natural_language_understanding_v1 import Features, SentimentOptions, EmotionOptions, KeywordsOptions, SemanticRolesOptions, CategoriesOptions
 from concurrent.futures import ThreadPoolExecutor
 import threading
+import sys
 
 
 
+
+
+#MULTI THREADING
+def task():
+    print("Executing task on different threads")
+    natural_language_understanding=NaturalLanguageUnderstandingV1(version='2018-11-16',iam_apikey='#########################',url='https://gateway-lon.watsonplatform.net/natural-language-understanding/api')
+    nlp=spacy.load("en_core_web_md")
+    nlp_sent=English()
+    sentencizer=nlp_sent.create_pipe("sentencizer")
+    nlp_sent.add_pipe(sentencizer)
+    return natural_language_understanding, nlp, nlp_sent,sentencizer,nlp_sent
+
+executor=ThreadPoolExecutor(max_workers=8)
+natural_language_understanding, nlp, nlp_sent,sentencizer,nlp_sent=executor.submit(task).result()
+print('All libraries imported')
+
+#Opening final json
+f=open("jsons/final.json", mode="r",encoding="utf-8",errors="ignore")
+data1=json.load(f)
+f.close()
+#Google dialogflow
+os.environ['GOOGLE_APPLICATION_CREDENTIALS']='#########'
+dataset=str(sys.argv[1])
+
+#defining functions
 def detect_intent_texts(project_id, session_id, text, language_code):
         session_client = dialogflow.SessionsClient()
         session = session_client.session_path(project_id, session_id)
@@ -68,21 +95,24 @@ def classification(user_input):
     else:
         return "None"
 
-
 def sentiment_extraction(user_input):
-    splitted=user_input.split()
-    if(len(splitted)<4):
+    try:
+        splitted=user_input.split()
+        if(len(splitted)<4):
+            blob=TextBlob(user_input)
+            score=blob.sentiment.polarity
+            return score
+        else:
+            sentiment=natural_language_understanding.analyze(text=user_input,
+            features=Features(sentiment=SentimentOptions(user_input))).get_result()
+            dic=sentiment["sentiment"]
+            doc=dic["document"]
+            score=doc["score"]
+            return score
+    except:
         blob=TextBlob(user_input)
         score=blob.sentiment.polarity
         return score
-    else:
-        sentiment=natural_language_understanding.analyze(text=user_input,
-        features=Features(sentiment=SentimentOptions(user_input))).get_result()
-        dic=sentiment["sentiment"]
-        doc=dic["document"]
-        score=doc["score"]
-        return score
-
 
 def keyword_extraction(user_input):
     user_input=user_input.strip()
@@ -91,7 +121,7 @@ def keyword_extraction(user_input):
     if(len(splitted)>3):
         keywords=natural_language_understanding.analyze(text=user_input,
         features=Features(semantic_roles=SemanticRolesOptions())).get_result()
-        print(json.dumps(keywords,indent=2))
+        #print(json.dumps(keywords,indent=2))
         
         l=keywords["semantic_roles"]
         if(len(l)!=0):
@@ -111,11 +141,12 @@ def keyword_extraction(user_input):
             matcher.add('NOUN_PATTERN',None,pattern)
             doc=nlp(user_input)
             for token in doc:
-                print(token.text,token.pos_)
+                #print(token.text,token.pos_)
+                pass
             matches=matcher(doc)
             subs=[]
             for match_id, start,end in matches:
-                print("subject: ",doc[start:end].text)
+                #print("subject: ",doc[start:end].text)
                 subs.append(doc[start:end].text)
             subject=' '.join(subs)
             
@@ -125,7 +156,8 @@ def keyword_extraction(user_input):
         matcher.add('NOUN_PATTERN',None,pattern)
         doc=nlp(user_input)
         for token in doc:
-                print(token.text,token.pos_)
+                #print(token.text,token.pos_)
+                pass
         matches=matcher(doc)
         subs=[]
         for match_id, start,end in matches:
@@ -134,20 +166,14 @@ def keyword_extraction(user_input):
             
 
     list_of_sub=subject.split()
-    print(list_of_sub)
+    #print(list_of_sub)
     return list_of_sub
-
-
 
 def get_topics(dictionary):
     return dictionary.keys()
 
-
-
 def intersection(lst1,lst2):
     return set(lst1).intersection(lst2)
-
-
 
 def check(user_input, list_of_topics_initial):
     text1=nlp(user_input)
@@ -169,27 +195,28 @@ def check(user_input, list_of_topics_initial):
                         sentence=qa[i+1]
                     else:
                         pass
-        print("sentence: ",sentence)
+        #print("sentence: ",sentence)
     return sentence
-
-
 
 def filter_line(line, whitelist):
     return ''.join([ ch for ch in line if ch in whitelist ])
-
-
 
 def time_delay(list_of_emo_convo):
     list_of_scores=[]
     for i in list_of_emo_convo:
         score=sentiment_extraction(i)
         list_of_scores.append(score)
-    neg=min(list_of_scores)
-    neg_index=list_of_scores.index(neg)
-    sad_text=list_of_emo_convo[neg_index]
-    time_delay=neg*10*-1
-    print("time delay:",time_delay,"s")
-    return time_delay, sad_text
+    try:
+        neg=min(list_of_scores)
+        neg_index=list_of_scores.index(neg)
+        sad_text=list_of_emo_convo[neg_index]
+        time_delay=neg*10*-1
+        print("time delay:",time_delay,"s")
+        return time_delay, sad_text
+    except:
+        time_delay=0
+        sad_text=''
+        return time_delay,sad_text
     '''
     if(len(list_of_emo_convo)<=10):
         for i in list_of_emo_convo:
@@ -220,7 +247,7 @@ def idk(user_input,dictionary,wiki):
     if("where" in user_input):
         for i in dictionary:
             if(dictionary[i]=="GPE"):
-                print(i)
+                #print(i)
                 imp_stuff.append(i)
         
         return imp_stuff
@@ -229,11 +256,11 @@ def idk(user_input,dictionary,wiki):
     elif("when" in user_input):
         for i in dictionary:
             if(dictionary[i]=="DATE"):
-                print(i)
+                #print(i)
                 imp_stuff.append(i)
         return imp_stuff     
     elif("who" in user_input):
-        return wiki          #Need to change it
+        return wiki_list[:4]   #Need to change it
     elif("why" in user_input):
         return '.'.join(wiki_list[:3])
     elif("which" in user_input):
@@ -250,8 +277,6 @@ def idk(user_input,dictionary,wiki):
         wiki=''
         return wiki
     
-
-
 def info_extraction(wiki,user_input):
     list_of_wiki_inputs=wiki.split('.')
     dictionary={}
@@ -262,50 +287,67 @@ def info_extraction(wiki,user_input):
     return dictionary
 
 
-
-#MULTI THREADING
-def task():
-    print("Executing task on different threads")
-    natural_language_understanding=NaturalLanguageUnderstandingV1(version='2018-11-16',iam_apikey='#############################',url='https://gateway-lon.watsonplatform.net/natural-language-understanding/api')
-    nlp=spacy.load("en_core_web_md")
-    nlp_sent=English()
-    sentencizer=nlp_sent.create_pipe("sentencizer")
-    nlp_sent.add_pipe(sentencizer)
-    return natural_language_understanding, nlp, nlp_sent,sentencizer,nlp_sent
-
-executor=ThreadPoolExecutor(max_workers=8)
-natural_language_understanding, nlp, nlp_sent,sentencizer,nlp_sent=executor.submit(task).result()
-
-
-print('All libraries imported')
-
-#Opening final json
-f=open("final.json", mode="r",encoding="utf-8",errors="ignore")
-data1=json.load(f)
-f.close()
-
-
-#Google dialogflow
-os.environ['GOOGLE_APPLICATION_CREDENTIALS']='#################'
-
-
-        
-
-    
-
-
 if __name__ == "__main__":
-    data_corpus = "cornell_corpus"
 
+    #Describing tasks
+    def task3():
+        print("Threading for responses")
+        resp()
+        time_taken, sed_txt=time_delay(list_of_emo_convo)
+        print("Sleeping......")
+        print(sed_txt)
+        if sed_txt=='':
+            print("No follow up required")
+            resp()
+            print("Thank you")
+            pass
+        else:
+            print('Beginning of follow up.....')
+            df_response_fp=detect_intent_texts('chatbot-oydwtm','unique',sed_txt,'en')
+            if "What happened" in df_response_fp:
+                sed_txt=sed_txt +" -fp"
+                df_response_fp=detect_intent_texts('chatbot-oydwtm','unique',sed_txt,'en')
+                time.sleep(time_taken)
+                print("follow up: ",df_response_fp)
+                resp()  
+                print("Thank you!") 
+            else:
+                print("No follow up required")
+                resp()
+                print("Thank you")
 
+    def task2():
+        print("Threading for loading model")
+        # Uncomment the below statement if you have already saved the model or comment it if you want to train model
+        model_ = Seq2seq(decoder_seq_length = decoder_seq_length,
+                    cell_enc=tf.keras.layers.LSTMCell,
+                    cell_dec=tf.keras.layers.LSTMCell,
+                    n_layer=3,
+                    n_units=256,
+                    embedding_layer=tl.layers.Embedding(vocabulary_size=vocabulary_size, embedding_size=emb_dim))
+
+        return model_
+
+    #Assinging dataset
+    data_corpus = dataset
+
+    #Choices
+    print("Choose among the options: ")
+    print("1. Extend dataset followed by conversing with bot")
+    print("2.Chatbot")
+    inp=input("Enter choice: ")
+    if(inp=='1'):
+        os.system("python extension/extension.py 1")
+    else:
+        pass
+
+    #################################Pre-processing begins#########################
     #data preprocessing
     metadata, trainX, trainY, testX, testY, validX, validY = initial_setup(data_corpus)
-
 
     # Parameters
     src_len = len(trainX)
     tgt_len = len(trainY)
-
 
     assert src_len == tgt_len
 
@@ -326,21 +368,17 @@ if __name__ == "__main__":
     start_id = src_vocab_size  # 8002
     end_id = src_vocab_size + 1  # 8003
 
-
-
     word2idx.update({'start_id': start_id})
     word2idx.update({'end_id': end_id})
     idx2word = idx2word + ['start_id', 'end_id']
 
-
     src_vocab_size = tgt_vocab_size = src_vocab_size + 2
-
 
     #num_epochs = 50
     vocabulary_size = src_vocab_size
-
     
     count=0 #For keeping count of entries into db
+    #####################################Pre-processing ends######################################
 
     def inference(seed, top_n):
         model_.eval()
@@ -354,36 +392,20 @@ if __name__ == "__main__":
             sentence = sentence + [w]
         return sentence
 
-
     decoder_seq_length = 20
     blacklist = '!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~\''
     whitelist = '0123456789abcdefghijklmnopqrstuvwxyz '
-
-    def task2():
-        print("Threading for loading model")
-    # Uncomment the below statement if you have already saved the model or comment it if you want to train model
-        model_ = Seq2seq(decoder_seq_length = decoder_seq_length,
-                    cell_enc=tf.keras.layers.LSTMCell,
-                    cell_dec=tf.keras.layers.LSTMCell,
-                    n_layer=3,
-                    n_units=256,
-                    embedding_layer=tl.layers.Embedding(vocabulary_size=vocabulary_size, embedding_size=emb_dim))
     
-    
-        tl.files.load_hdf5_to_weights('models/model_conv.hdf5', model_, skip=False)
-        optimizer = tf.optimizers.Adam(learning_rate=0.001)
-        model_.train()
-        return model_
+    #loading model  
     executor=ThreadPoolExecutor(max_workers=8)
     model_=executor.submit(task2).result()
-    
+    dataset=dataset+".hdf5"
+    load="models\\"+dataset
+    tl.files.load_hdf5_to_weights(load, model_, skip=False)
+    optimizer = tf.optimizers.Adam(learning_rate=0.001)
+    model_.train()
 
-    list_of_topics_initial=get_topics(data1)
-    list_of_topics_initial=list(list_of_topics_initial)
-    
-    
     #Uncomment for training
-
     '''
     for epoch in range(num_epochs):
         model_.train()
@@ -421,159 +443,215 @@ if __name__ == "__main__":
     '''
     ##################################################################################################
     #Dictionaries and lists used to store and classify conversations
+    list_of_topics_initial=get_topics(data1)
+    list_of_topics_initial=list(list_of_topics_initial)
     dictionary={}
     list_of_topics_fp=[]
     ans=[]
     list_of_emo_convo=[]
     fallback_intent=['I didn\'t get that. Can you say it again?','I missed what you said. What was that?','Sorry, could you say that again?','Sorry, can you say that again?','Can you say that again?','Sorry, I didn\'t get that. Can you rephrase?','Sorry, what was that?','One more time?','What was that?','Say that one more time?','I didn\'t get that. Can you repeat?','I missed that, say that again?']
     ending_convo=['bye', 'see you','goodbye','Bye', 'hasta la vista','i\'ll be back']
+    game_request=["yea","okay", "yep", "yeah", "yes","sure"]
+    no_response=["no","nope","nahh"]
+    try:
+        df=pd.read_csv('extension.csv',usecols=['text'])
+        ext=df['text'].values.tolist()
+    except:
+        ext=[]
 
-
+    dictionary_of_extended={}
+    dictionary_of_extended['questions']=[]
+    dictionary_of_extended['answers']=[]
     
+    try:
+        for i in range(0,len(ext),2):
+            j=i+1
+            dictionary_of_extended['questions'].append(ext[i])
+            dictionary_of_extended['answers'].append(ext[j])
+    except:
+        dictionary_of_extended={}
+    try:
+        list_of_extended_ques=dictionary_of_extended['questions']
+        list_of_extended_ans=dictionary_of_extended['answers']
+    except:
+        list_of_extended_ques=[]
+        list_of_extended_ans=[]
+    ####################################################################################################
+
     def resp():
         while(1):
             user_input=input("Enter query: ")
-            sen=sentiment_extraction(user_input)
-            if(sen<0):
-                print("sentiment: ",sen)
-                list_of_emo_convo.append(user_input)
-            #print("movie convo response: ",' '.join(inference(user_input,1)))
-            df_response=detect_intent_texts('chatbot-oydwtm','unique',user_input,'en')
-            if(user_input in ending_convo):
-                if(df_response in fallback_intent):
-                    print("Bye")
-                    break
+
+            if user_input in list_of_extended_ques:
+                index=list_of_extended_ques.index(user_input)
+                text=list_of_extended_ans[index]
+                #(text)
+                print(">", list_of_extended_ans[index])
+
+            else:        
+                sen=sentiment_extraction(user_input)
+                if(sen<0):
+                    #print("sentiment: ",sen)
+                    list_of_emo_convo.append(user_input)
+                #print("movie convo response: ",' '.join(inference(user_input,1)))
                 else:
+                    pass
+                    
+                df_response=detect_intent_texts('chatbot-oydwtm','unique',user_input,'en')
+                if "joke" in df_response:
                     print(">",df_response)
-                    break
-            else:
-                pass
-            
-            if df_response in fallback_intent:
-                user_input=filter_line(user_input,whitelist)
-                list_of_keywords=keyword_extraction(user_input)
-                keywords=' '.join(list_of_keywords)
-                list_of_user_input=user_input.split()
-                if("what" in list_of_user_input and "is" in list_of_user_input and len(list_of_user_input)<=4):
-                    keywords=list_of_user_input[-2:]
-                    keywords=' '.join(list_of_user_input)
-                    wiki=wiki_extract(keywords)
-                    dictionary_wiki=info_extraction(wiki,user_input)
-                    wiki_keywords=idk(user_input,dictionary_wiki, wiki)
-                    if(type(wiki_keywords)==list):
-                        for text in wiki.split('.'):
-                            count=0
-                            for key in wiki_keywords:
-                                if key in text:
-                                    count+=1
-                            if count>=1:
-                                list1=[]
-                                list1.append(text)
-                                wiki=''.join(list1)           
-                                break
+                    #(user_input)
+                    user_input=input("Enter query: ")
+                    user_input=filter_line(user_input, whitelist)
+                    if user_input in no_response:
+                        df_response=detect_intent_texts('chatbot-oydwtm','unique',user_input,'en')
                     else:
-                        wiki=wiki_keywords
+                        user_input=user_input+ " -jk"
+                        df_response=detect_intent_texts('chatbot-oydwtm','unique',user_input,'en')
+                    print(">",df_response)
+                    #(df_response)
+                    
+
+                else:
+                    
+                    if(user_input in ending_convo):
+                        if(df_response in fallback_intent):
+                            print("Bye")
+                            break
+                        else:
+                            print(">",df_response)
+                            #(df_response)
+                            break
+                    else:
+                        pass
+                        
+                    if df_response in fallback_intent:
+                        user_input=filter_line(user_input,whitelist)
+                        list_of_keywords=keyword_extraction(user_input)
+                        keywords=' '.join(list_of_keywords)
+                        list_of_user_input=user_input.split()
+                        if("what" in list_of_user_input and "is" in list_of_user_input and len(list_of_user_input)<=4):
+                            keywords=list_of_user_input[-2:]
+                            keywords=' '.join(list_of_user_input)
+                            wiki=wiki_extract(keywords)
+                            dictionary_wiki=info_extraction(wiki,user_input)
+                            wiki_keywords=idk(user_input,dictionary_wiki, wiki)
+                            if(type(wiki_keywords)==list):
+                                for text in wiki.split('.'):
+                                    count=0
+                                    for key in wiki_keywords:
+                                        if key in text:
+                                            count+=1
+                                    if count>=1:
+                                        list1=[]
+                                        list1.append(text)
+                                        wiki=''.join(list1)           
+                                        break
+                            else:
+                                wiki=wiki_keywords
+                                        
+
+
+                        else:
+                            wiki=wiki_extract(keywords)
+                            dictionary_wiki=info_extraction(wiki,user_input)
+                            wiki_keywords=idk(user_input,dictionary_wiki, wiki)
+                            
+                            if(type(wiki_keywords)==list):
+                                doc=nlp_sent(wiki)
+                                if "who" in user_input:
+                                    for sent in doc.sents:
+                                        sent=str(sent)
+
+                                        count=0
+                                        for key in list_of_keywords:
+                                            if key in sent:
+                                                count+=1
+                                        if(count>=1):
+                                            list1=[]
+                                            list1.append(sent)
+                                            list1=list1[:3]
+                                            wiki='.'.join(list1)
+                                else:
+                                    for text in wiki.split('.'):
+                                        count=0
+                                        for key in wiki_keywords:
+                                            if key in text:
+                                                count+=1
+                                        if count>=1:
+                                            list1=[]
+                                            list1.append(text)
+                                            wiki=''.join(list1)           
+                                            break
+                            else:
+                                wiki=wiki_keywords
                             
 
-
-                else:
-                    wiki=wiki_extract(keywords)
-                    dictionary_wiki=info_extraction(wiki,user_input)
-                    wiki_keywords=idk(user_input,dictionary_wiki, wiki)
-                    if(type(wiki_keywords)==list):
-                        doc=nlp_sent(wiki)
-                        if "who" in user_input:
-                            for sent in doc.sents:
-                                count=0
-                                for key in list_of_keywords:
-                                    if key in text:
-                                        count+=1
-                                if(count>=1):
-                                    list1=[]
-                                    list1.append(sent)
-                                    wiki='.'.join(list1)
-                        else:
-                            for text in wiki.split('.'):
-                                count=0
-                                for key in wiki_keywords:
-                                    if key in text:
-                                        count+=1
-                                if count>=1:
-                                    list1=[]
-                                    list1.append(text)
-                                    wiki=''.join(list1)           
-                                    break
-                    else:
-                        wiki=wiki_keywords
-                
-
-                sentiment=sentiment_extraction(user_input)
-                num_word=len(user_input.split())
-                if(wiki==''):
-                    if(num_word>3 and sentiment<0):
-                        #list_of_emo_convo.append(user_input)
-                        pass
-                    else:
-                        pass
-                    sent=check(user_input,list_of_topics_initial)
-
-                    if(user_input=="Bye" or user_input=="bye"):
-                        print("Bye")
-                        break
-                    elif(num_word<4):
-                        if(sent!=''):
-                            print("Searching")
-                            print(">",sent)
-                            sent=''
-                        else: 
-                            print("Generating")   
-                            sentence=inference(user_input,1)
-                            print(">",' '.join(sentence))
-                    else:
-                        if(sent!=''):
-                            print("Searching")
-                            topic=classification(user_input)
-                            if(topic not in list_of_topics_fp):
-                                list_of_topics_fp.append(topic)
-                                dictionary[topic]=[user_input]
+                        sentiment=sentiment_extraction(user_input)
+                        num_word=len(user_input.split())
+                        if(wiki==''):
+                            if(num_word>3 and sentiment<0):
+                                #list_of_emo_convo.append(user_input)
+                                pass
                             else:
-                                dictionary[topic].append(user_input)
-                            print(">",sent)
-                            sent=''
-                        else:
-                            print("Generating")
-                            topic=classification(user_input)
-                            if(topic not in list_of_topics_fp):
-                                list_of_topics_fp.append(topic)
-                                dictionary[topic]=[user_input]
+                                pass
+                            sent=check(user_input,list_of_topics_initial)
+
+                            if(user_input=="Bye" or user_input=="bye"):
+                                print("Bye")
+                                #(text="Bye")
+                                break
+                            elif(num_word<4):
+                                if(sent!=''):
+                                    print("Searching")
+                                    print(">",sent)
+                                    #(sent)
+                                    sent=''
+                                else: 
+                                    print("Generating")   
+                                    sentence=inference(user_input,1)
+                                    print(">",' '.join(sentence))
+                                    text=' '.join(sentence)
+                                    print(text)
+                                    #(text)
                             else:
-                                dictionary[topic].append(user_input)
-                                        
-                            print("Query >", user_input)
-                            top_n=1
-                            for i in range(top_n):
-                                sentence=inference(user_input, top_n)
-                                print(">",' '.join(sentence))
-                else:
-                    print("second last else>",wiki)
-            
-            else:
-                print(">",df_response)
+                                if(sent!=''):
+                                    print("Searching")
+                                    topic=classification(user_input)
+                                    if(topic not in list_of_topics_fp):
+                                        list_of_topics_fp.append(topic)
+                                        dictionary[topic]=[user_input]
+                                    else:
+                                        dictionary[topic].append(user_input)
+                                    print(">",sent)
+                                    #(sent)
+                                    sent=''
+                                else:
+                                    print("Generating")
+                                    topic=classification(user_input)
+                                    if(topic not in list_of_topics_fp):
+                                        list_of_topics_fp.append(topic)
+                                        dictionary[topic]=[user_input]
+                                    else:
+                                        dictionary[topic].append(user_input)
+                                    print("Query >", user_input)
+                                    top_n=1
+                                    for i in range(top_n):
+                                        sentence=inference(user_input, top_n)
+                                        print(">",' '.join(sentence))
+                                        text=' '.join(sentence)
+                                        print(text)
+                                        #(text)
+                        else:
+                            print(">",wiki)
+                            #(wiki)
+                        
+                    else:
+                        print(">",df_response)
+                        #(df_response)
         return 0
-    def task3():
-        print("Threading for resonses")
-        resp()
-        time_taken, sed_txt=time_delay(list_of_emo_convo)
-        print("Sleeping......")
-        print(sed_txt)
-        time.sleep(time_taken)
     
-        print('Beginning of follow up.....')
-        sed_txt=sed_txt +" -fp"
-        df_response_fp=detect_intent_texts('chatbot-oydwtm','unique',sed_txt,'en')
-        print("follow up: ",df_response_fp)
-        resp()  
-        print("Thank you!")  
     executor=ThreadPoolExecutor(max_workers=8)
-    
     executor.submit(task3).result()
+
+    #Done

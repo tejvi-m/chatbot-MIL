@@ -30,9 +30,9 @@ pip install tensorflow
 ```
 pip install dialogflow
 ```
-5. Install nltk
+5. Install textblob
 ```
-pip install nltk
+pip install textblob
 ```
 6. Install tqdm
 ```
@@ -54,6 +54,20 @@ pip install ibm_watson
 ```
 python -m spacy download en_core_web_md
 ```
+11. Install numpy
+```
+pip install numpy
+```
+12. Install pandas
+```
+pip install pandas
+```
+13. Install tensorlayer
+```
+pip install tensorlayer
+```
+
+
 
 ### API's used -
 1. MediaWiki

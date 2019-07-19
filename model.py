@@ -34,7 +34,7 @@ from gtts import gTTS
 #MULTI THREADING
 def task():
     print("Executing task on different threads")
-    natural_language_understanding=NaturalLanguageUnderstandingV1(version='2018-11-16',iam_apikey='KoTo6dvndPQEAy3T9LNqZMGJEHhEa2Yy3tHLyxTNO50r',url='https://gateway-lon.watsonplatform.net/natural-language-understanding/api')
+    natural_language_understanding=NaturalLanguageUnderstandingV1(version='2018-11-16',iam_apikey='############################',url='https://gateway-lon.watsonplatform.net/natural-language-understanding/api')
     nlp=spacy.load("en_core_web_md")
     nlp_sent=English()
     sentencizer=nlp_sent.create_pipe("sentencizer")
@@ -50,7 +50,7 @@ f=open("jsons/final.json", mode="r",encoding="utf-8",errors="ignore")
 data1=json.load(f)
 f.close()
 #Google dialogflow
-os.environ['GOOGLE_APPLICATION_CREDENTIALS']='jsons/chatbot-oydwtm-e04f6c32c004.json'
+os.environ['GOOGLE_APPLICATION_CREDENTIALS']='j*******************************'
 dataset=str(sys.argv[1])
 
 #defining functions

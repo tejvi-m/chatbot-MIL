@@ -1,0 +1,8 @@
+Model has been trained on three datasets (links provided below)-
+1. Stanford Question-Answering Dataset (SQUaD)
+https://rajpurkar.github.io/SQuAD-explorer/
+2. Cornell Movie Dialogue Corpus
+http://www.cs.cornell.edu/~cristian/Cornell_Movie-Dialogs_Corpus.html
+3. Donald Trump Tweets Dataset
+https://www.kaggle.com/datascienceai/donald-trump-tweets
+

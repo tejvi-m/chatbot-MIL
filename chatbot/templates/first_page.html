@@ -1,0 +1,26 @@
+{% extends "collapse.html" %}
+
+{% block inner %}
+
+
+
+    <div class="m-5">
+      <form class="logout-link" action="/" method="post">
+        <div class="form-group m-10">
+
+          <a href="/upload/" class='text-white'><button type="button" class="btn btn-primary btn-lg btn-block m-1">Upload new dataset</button></a>
+          <a href="/start_conv/" class='text-white'><button type="button" class="btn btn-primary btn-lg btn-block m-1">Start new conversation</button></a>
+          <a href="/personalize/" class='text-white'><button type="button" class="btn btn-primary btn-lg btn-block m-1">Personalize your bot</button></a>
+
+
+
+
+        </div>
+      </form>
+    </div>
+
+
+
+
+
+{% endblock %}

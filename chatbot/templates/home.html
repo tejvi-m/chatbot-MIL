@@ -1,0 +1,22 @@
+{% extends "base_layout.html" %}
+{% load static %}
+
+
+{% block content %}
+
+    <img src="{% static 'img/welcome.png' %}" class="img-fluid" alt="Responsive image">
+
+    <div class="m-5">
+      <form class="logout-link" action="/" method="post">
+        <div class="form-group m-10">
+
+          <a href="accounts/" class='text-white'><button type="button" class="btn btn-primary btn-lg btn-block">Proceed</button></a>
+
+
+        </div>
+      </form>
+    </div>
+
+
+
+{% endblock %}

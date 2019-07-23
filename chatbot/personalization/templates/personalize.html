@@ -1,0 +1,38 @@
+{% extends "collapse.html" %}
+
+{% block inner %}
+
+
+  <div class='form-group m-4'>
+
+    <div class="text-center">
+      <h2>Make your chatbot more personalized by adding you own questions and responses </h2>
+      <p>These can serve as reminders for you!</p>
+    </div>
+    <form class="" action="{% url 'personalization:personalize' %}" method="post">
+
+
+
+      <label for="emailid">Question</label>
+      <input type="text" name="question" class="form-control" value=""></input></br>
+
+      <label for="password">Expected answer</label>
+      <input type="text" name="answer" class="form-control" value=""></input></br>
+
+      <button type="submit" class="btn btn-primary">Add to my records</button>
+
+    </form>
+
+  
+    {% if success %}
+    <div class='text-center'></br></br></br></br>
+      <p> Your response has been saved in your record successfully! </p>
+      <button type='button' class="btn btn-primary text-center"><a href="/start_conv/" class='text-white'>Proceed</a></button>
+    </div>
+    {% endif %}
+
+
+  </div>
+
+
+{% endblock %}

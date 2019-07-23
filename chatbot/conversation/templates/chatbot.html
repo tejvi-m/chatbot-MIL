@@ -1,0 +1,164 @@
+{% load static %}
+
+
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+
+    <link rel="shortcut icon" type="image/png" href="{%static 'icon.png' %}"/>
+    <title>UniBot!</title>
+    <link rel="stylesheet" href="{% static 'CSS/styles.css' %}" type="text/css">
+  </head>
+
+  <body>
+
+    <div class="pos-f-t">
+      <div class="collapse" id="navbarToggleExternalContent">
+        <div class="bg-dark p-4">
+          <!-- <h4 class="text-white">Collapsed content</h4> -->
+          <ul>
+            <li><a href="/options/">Home</a></li>
+            <li><a href="/start_conv/">Converse</a></li>
+            <li><a href="/upload/">Upload dataset</a></li>
+            <li><a href="/personalize/">Customize</a></li>
+            <li><a href="/">Sign out</a></li>
+          </ul>
+          <!-- <span class="text-muted">Toggleable via the navbar brand.</span> -->
+        </div>
+      </div>
+      <nav class="navbar navbar-dark bg-dark">
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarToggleExternalContent" aria-controls="navbarToggleExternalContent" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+      </nav>
+    </div>
+
+
+    <div id="loader-wrapper">
+      <div id="loader"></div>
+    </div>
+
+    <div class="jumbotron jumbotron-fluid bg-primary">
+      <div class="container text-white text-center">
+        <h1 class="display-4"><img src="{%static 'icon.png' %}" alt="">UniBot</h1></br>
+        <h2 class="lead"><strong>One like never before!</strong></h2>
+      </div>
+    </div>
+
+
+    <div class="wrapper m-4">
+
+      <div class="m-5">
+
+
+            <div id="addhere" class="d-flex flex-column">
+
+            </div>
+
+
+             <div class='form-group'>
+
+                <input type="text" class='border border-primary mt-5 form-control' placeholder="User input" name="user_text" id="user_resp"></input></br>
+
+
+
+              <button class="btn btn-primary float-right" onclick="loadDoc()" id="triggerme" >Enter</button>
+
+          </div>
+
+          <div id="typinghere"></div>
+
+      </div>
+
+    </div>
+
+
+
+
+    <script type='text/javascript' >
+
+        function loadDoc() {
+
+            var xhttp = new XMLHttpRequest();
+
+            xhttp.onreadystatechange = function() {
+              
+
+              if (xhttp.readyState == 4 && xhttp.status == 200) {
+                console.log(xhttp.readyState);
+                typehere = document.getElementById("typinghere");
+                typehere.innerHTML = "";
+
+                var p = document.createElement('p');
+                p.setAttribute('class', 'm-4 p-2 float-left border rounded h5 bg-warning');
+
+                var user_resp=document.getElementById('user_resp');
+                user_resp.value='';
+
+
+                // p_user.textContent = user_resp;
+                p.textContent = this.responseText; //"New Heading!!!";
+
+
+
+                var dynDiv = document.createElement("div");
+                dynDiv.appendChild(p);
+                document.getElementById("addhere").appendChild(dynDiv);
+
+
+                console.log("Successful");
+              }
+            };
+
+
+
+            xhttp.open("POST", "/start_conv/", true);
+            xhttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+
+
+
+            var user_resp=document.getElementById('user_resp').value;
+
+
+            var p_user = document.createElement('p');
+            p_user.setAttribute('class','m-4 p-2 float-right border rounded h5 bg-success text-white');
+            p_user.textContent = user_resp;
+
+            var dynDivuser = document.createElement("div");
+
+            dynDivuser.appendChild(p_user);
+            document.getElementById("addhere").appendChild(dynDivuser);
+
+
+            //To show for Bye
+            if(user_resp=="Bye" || user_resp=="bye"){
+              var p = document.createElement('p');
+              p.setAttribute('class', 'm-4 p-2 float-left border rounded h5 bg-warning');
+              p.textContent = "Bye Bye";
+              var dynDiv = document.createElement("div");
+              dynDiv.appendChild(p);
+              document.getElementById("addhere").appendChild(dynDiv);
+              document.getElementById("addhere").innerHTML = "";
+            }
+
+
+            //document.getElementById("addhere").appendChild(p_user);
+            xhttp.send("user_text="+user_resp);
+            console.log(xhttp.readyState);
+
+
+        }
+
+    </script>
+
+    <script type="text/javascript" src="{% static 'JS/keys.js' %}"></script>
+    <script type='text/javascript' src="{% static 'JS/load.js' %}"></script>
+
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+   <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+   <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+  </body>
+</html>
